@@ -1,5 +1,6 @@
 const Invoice = require("../models/invoiceModel");
 const Customer = require("../models/customerModel");
+const Subscription = require("../models/subscrptionModel");
 const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const ErrorHandler = require("../utils/errorhandler");
 const Product = require("../models/productModel")
@@ -216,7 +217,7 @@ const Notification = require("../models/notificationModel");
 // });
 const SubscriptionPlan = require("../models/subscrptionplanModel"); // Import the model
 
-exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
+exports.createInvoicefri = catchAsyncErrors(async (req, res, next) => {
   const {
     customerName,
     productType,
@@ -328,6 +329,148 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
+exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
+  const {
+    customerName,
+    productType,
+    productQuantity,
+    price, // Unit price
+    subscriptionPlan,
+    paymentMode,
+    paymentStatus
+  } = req.body;
+
+  // ✅ Validate required fields
+  if (!customerName || !productType || !productQuantity || !price || !subscriptionPlan || !paymentMode) {
+    return next(new ErrorHandler("All fields are required", 400));
+  }
+
+  const quantityNumber = Number(productQuantity);
+  const unitPrice = Number(price);
+
+  if (isNaN(quantityNumber) || quantityNumber <= 0) {
+    return next(new ErrorHandler("Product quantity must be a valid number", 400));
+  }
+
+  if (isNaN(unitPrice) || unitPrice <= 0) {
+    return next(new ErrorHandler("Unit price must be a valid number", 400));
+  }
+
+  // ✅ Fetch customer
+  const customerExists = await Customer.findOne({ name: customerName }).populate("deliveryBoy");
+  if (!customerExists) {
+    return next(new ErrorHandler("Customer not found", 404));
+  }
+
+  // ✅ Fetch product
+  const product = await Product.findOne({ productType }).select("productType stock price image");
+  if (!product) {
+    return next(new ErrorHandler("Product type not found", 404));
+  }
+
+  // ✅ Check stock
+  if (product.stock < quantityNumber) {
+    return next(new ErrorHandler("Insufficient stock available", 400));
+  }
+
+  // ✅ Fetch subscription plan
+  const plan = await SubscriptionPlan.findOne({ subscriptionPlan }).populate("products");
+  if (!plan) {
+    return next(new ErrorHandler("Subscription plan not found", 404));
+  }
+
+  // ✅ Calculate total price
+  const totalPrice = unitPrice * quantityNumber;
+
+  // ✅ Generate invoice ID
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const yyyy = today.getFullYear();
+  const dateStr = `${dd}${mm}${yyyy}`;
+
+  const countToday = await Invoice.countDocuments({
+    createdAt: {
+      $gte: new Date(`${yyyy}-${mm}-${dd}T00:00:00.000Z`),
+      $lte: new Date(`${yyyy}-${mm}-${dd}T23:59:59.999Z`)
+    }
+  });
+
+  const paddedCount = String(countToday + 1).padStart(3, '0');
+  const invoiceId = `INV-${dateStr}-${paddedCount}`;
+
+  // ✅ Update product stock
+  product.stock -= quantityNumber;
+  await product.save();
+
+  // ✅ Create invoice
+  const invoice = await Invoice.create({
+    invoiceId,
+    customer: customerExists._id,
+    customerName: customerExists.name,
+    productId: product._id,
+    productType,
+    productQuantity: quantityNumber,
+    price: totalPrice,
+    subscriptionPlan,
+    paymentMode,
+    paymentStatus
+  });
+
+  // ✅ Create subscription if not already exists
+  const existingSubscription = await Subscription.findOne({
+    customer: customerExists._id,
+    productType,
+    isActive: true
+  });
+
+  if (!existingSubscription) {
+    const newSubscription = await Subscription.create({
+      customer: customerExists._id,
+      name: customerExists.name,
+      phoneNumber: customerExists.phoneNumber,
+      productType,
+      deliveryDays: "Daily", // default, update as needed
+      assignedDeliveryBoy: customerExists.deliveryBoy?._id || null,
+      address: customerExists.address || "",
+      subscriptionPlan: plan.subscriptionPlan,
+      frequency: "Every Day", // default
+      price: plan.totalPrice,
+      startDate: new Date(),
+      endDate: null,
+      status: "Active",
+      deliveryTime: plan.deliveryTime,
+      products: plan.products,
+      discount: plan.discount,
+      totalPrice: plan.totalPrice,
+      isActive: true,
+    });
+    console.log("Created subscription from invoice:", newSubscription._id);
+  }
+
+  // ✅ Notify delivery boy
+  if (customerExists.deliveryBoy) {
+    await Notification.create({
+      deliveryBoy: customerExists.deliveryBoy._id,
+      message: `New invoice (${invoiceId}) created for ${customerExists.name}.`
+    });
+  }
+
+  // ✅ Send response
+  res.status(201).json({
+    success: true,
+    message: "Invoice created. Subscription ensured. Notification sent.",
+    invoice,
+    subscriptionPlanDetails: {
+      plan: plan.subscriptionPlan,
+      discount: plan.discount,
+      totalPrice: plan.totalPrice,
+      deliveryTime: plan.deliveryTime,
+      products: plan.products
+    },
+    remainingStock: product.stock
+  });
+});
 
 // 📋 Get all invoices
 // exports.getAllInvoices = catchAsyncErrors(async (req, res, next) => {
@@ -376,7 +519,7 @@ exports.getInvoiceById = catchAsyncErrors(async (req, res, next) => {
   // Find product details
   const product = await Product.findOne({ productType: invoice.productType });
 
-  const total = invoice.productQuantity * invoice.price;
+  const total = invoice.price;
 
   res.status(200).json({
     success: true,

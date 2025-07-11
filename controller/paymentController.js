@@ -51,7 +51,7 @@ exports.getPaymentSummary = catchAsyncErrors(async (req, res, next) => {
 
   const receivedCount = invoices.filter(inv => inv.paymentStatus === "Paid").length;
   const pendingCount = invoices.filter(inv => inv.paymentStatus === "Unpaid").length;
-  const partialCount = invoices.filter(inv => inv.paymentStatus === "Partial").length; // optional if "Partial" used
+  const partialCount = invoices.filter(inv => inv.paymentStatus === "Paid" || "Unpaid").length; // optional if "Partial" used
 
   const paymentList = invoices.map(inv => ({
     date: inv.createdAt,
@@ -270,5 +270,101 @@ exports.getAllPendingPayments = catchAsyncErrors(async (req, res, next) => {
     success: true,
     count: pendingInvoices.length,
     data
+  });
+});
+
+
+// exports.getAllPartialPayments = catchAsyncErrors(async (req, res, next) => {
+//   const partialInvoices = await Invoice.find({ paymentStatus: "Partially Paid" })
+//     .populate({
+//       path: "customer",
+//       select: "name phoneNumber deliveryBoy",
+//       populate: {
+//         path: "deliveryBoy",
+//         select: "name"
+//       }
+//     })
+//     .populate({
+//       path: "productId",
+//       select: "productType image"
+//     })
+//     .sort({ createdAt: -1 });
+
+//   if (!partialInvoices.length) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "No partially paid invoices found",
+//     });
+//   }
+
+//   const paymentList = partialInvoices.map(inv => ({
+//     invoiceId: inv.invoiceId,
+//     productType: inv.productType || inv.productId?.productType || "N/A",
+//     productImage: inv.productId?.image || [],
+//     customerName: inv.customer?.name || "N/A",
+//     deliveryBoyName: inv.customer?.deliveryBoy?.name || "N/A",
+//     date: inv.createdAt,
+//     totalAmount: inv.price,
+//     paidAmount: inv.paidAmount,
+//     dueAmount: inv.dueAmount,
+//     paymentMode: inv.payment || "N/A",
+//     paymentStatus: inv.paymentStatus,
+//     paymentHistory: inv.paymentHistory || []
+//   }));
+
+//   const totalReceivedAmount = partialInvoices.reduce((sum, inv) => sum + inv.paidAmount, 0);
+//   const totalDueAmount = partialInvoices.reduce((sum, inv) => sum + inv.dueAmount, 0);
+
+//   res.status(200).json({
+//     success: true,
+//     totalPartialPayments: partialInvoices.length,
+//     totalReceivedAmount,
+//     totalDueAmount,
+//     paymentList,
+//   });
+// });
+
+exports.getAllPartialPayments = catchAsyncErrors(async (req, res, next) => {
+  const invoices = await Invoice.find()
+    .populate({
+      path: "customer",
+      select: "name phoneNumber deliveryBoy",
+      populate: {
+        path: "deliveryBoy",
+        select: "name"
+      }
+    })
+    .populate({
+      path: "productId",
+      select: "productType image"
+    })
+    .sort({ createdAt: -1 });
+
+  if (!invoices.length) {
+    return res.status(404).json({
+      success: false,
+      message: "No invoices found"
+    });
+  }
+
+  const invoiceList = invoices.map(inv => ({
+    invoiceId: inv.invoiceId,
+    productType: inv.productId?.productType || "N/A",
+    productImage: inv.productId?.image || [], // ✅ only this
+    customerName: inv.customer?.name || "N/A",
+    deliveryBoyName: inv.customer?.deliveryBoy?.name || "N/A",
+    date: inv.createdAt,
+    totalAmount: inv.price,
+    paidAmount: inv.paidAmount || 0,
+    dueAmount: inv.dueAmount || (inv.price - (inv.paidAmount || 0)),
+    paymentMode: inv.paymentMode || "N/A",
+    paymentStatus: inv.paymentStatus,
+    // paymentHistory: inv.paymentHistory || []
+  }));
+
+  res.status(200).json({
+    success: true,
+    totalInvoices: invoiceList.length,
+    invoices: invoiceList
   });
 });
