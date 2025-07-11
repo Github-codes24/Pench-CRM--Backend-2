@@ -334,10 +334,12 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
     customerName,
     productType,
     productQuantity,
-    price, // Unit price
+    price,
     subscriptionPlan,
     paymentMode,
-    paymentStatus
+    paymentStatus,
+    isPartialPayment,
+    amountPaid // ✅ expected when isPartialPayment is true
   } = req.body;
 
   // ✅ Validate required fields
@@ -356,31 +358,43 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Unit price must be a valid number", 400));
   }
 
-  // ✅ Fetch customer
   const customerExists = await Customer.findOne({ name: customerName }).populate("deliveryBoy");
-  if (!customerExists) {
-    return next(new ErrorHandler("Customer not found", 404));
-  }
+  if (!customerExists) return next(new ErrorHandler("Customer not found", 404));
 
-  // ✅ Fetch product
   const product = await Product.findOne({ productType }).select("productType stock price image");
-  if (!product) {
-    return next(new ErrorHandler("Product type not found", 404));
-  }
+  if (!product) return next(new ErrorHandler("Product type not found", 404));
 
-  // ✅ Check stock
   if (product.stock < quantityNumber) {
     return next(new ErrorHandler("Insufficient stock available", 400));
   }
 
-  // ✅ Fetch subscription plan
   const plan = await SubscriptionPlan.findOne({ subscriptionPlan }).populate("products");
-  if (!plan) {
-    return next(new ErrorHandler("Subscription plan not found", 404));
-  }
+  if (!plan) return next(new ErrorHandler("Subscription plan not found", 404));
 
-  // ✅ Calculate total price
   const totalPrice = unitPrice * quantityNumber;
+
+  // ✅ Handle partial payment logic
+  let finalPaymentStatus = paymentStatus || "Unpaid";
+  let paidAmount = 0;
+  let dueAmount = totalPrice;
+  let isPartial = false;
+
+  if (isPartialPayment && amountPaid) {
+    paidAmount = Number(amountPaid);
+    dueAmount = totalPrice - paidAmount;
+    isPartial = true;
+
+    if (paidAmount < totalPrice) {
+      finalPaymentStatus = "Partial";
+    } else {
+      finalPaymentStatus = "Paid";
+    }
+  } else {
+    if (finalPaymentStatus === "Paid") {
+      paidAmount = totalPrice;
+      dueAmount = 0;
+    }
+  }
 
   // ✅ Generate invoice ID
   const today = new Date();
@@ -399,11 +413,9 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
   const paddedCount = String(countToday + 1).padStart(3, '0');
   const invoiceId = `INV-${dateStr}-${paddedCount}`;
 
-  // ✅ Update product stock
   product.stock -= quantityNumber;
   await product.save();
 
-  // ✅ Create invoice
   const invoice = await Invoice.create({
     invoiceId,
     customer: customerExists._id,
@@ -414,10 +426,13 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
     price: totalPrice,
     subscriptionPlan,
     paymentMode,
-    paymentStatus
+    paymentStatus: finalPaymentStatus,
+    partialPayment: isPartial,
+    amountPaid: paidAmount,
+    amountDue: dueAmount
   });
 
-  // ✅ Create subscription if not already exists
+  // ✅ Create subscription if needed
   const existingSubscription = await Subscription.findOne({
     customer: customerExists._id,
     productType,
@@ -425,19 +440,18 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
   });
 
   if (!existingSubscription) {
-    const newSubscription = await Subscription.create({
+    await Subscription.create({
       customer: customerExists._id,
       name: customerExists.name,
       phoneNumber: customerExists.phoneNumber,
       productType,
-      deliveryDays: "Daily", // default, update as needed
+      deliveryDays: "Daily",
       assignedDeliveryBoy: customerExists.deliveryBoy?._id || null,
       address: customerExists.address || "",
       subscriptionPlan: plan.subscriptionPlan,
-      frequency: "Every Day", // default
+      frequency: "Every Day",
       price: plan.totalPrice,
       startDate: new Date(),
-      endDate: null,
       status: "Active",
       deliveryTime: plan.deliveryTime,
       products: plan.products,
@@ -445,7 +459,6 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
       totalPrice: plan.totalPrice,
       isActive: true,
     });
-    console.log("Created subscription from invoice:", newSubscription._id);
   }
 
   // ✅ Notify delivery boy
@@ -456,7 +469,6 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
     });
   }
 
-  // ✅ Send response
   res.status(201).json({
     success: true,
     message: "Invoice created. Subscription ensured. Notification sent.",
@@ -471,6 +483,7 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
     remainingStock: product.stock
   });
 });
+
 
 // 📋 Get all invoices
 // exports.getAllInvoices = catchAsyncErrors(async (req, res, next) => {

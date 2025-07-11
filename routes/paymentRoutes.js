@@ -8,7 +8,8 @@ getPaymentDetailsById,
 getAllReceivedPayments,
 viewPaymentDetails,
 getAllPendingPayments,
-getAllPartialPayments
+getAllPartialPayments,
+submitRemainingPayment
 } = require("../controller/paymentController");
 
 const { isAuthenticatedDeliveryBoy } = require("../middlewares/auth");
@@ -22,5 +23,6 @@ router.get("/payments/received", getAllReceivedPayments);
 router.get("/payment/view/:id", viewPaymentDetails);
 router.get("/payments/pending", getAllPendingPayments);
 router.get("/partial-payments", getAllPartialPayments);
+router.post("/invoice/submit-remaining", submitRemainingPayment);
 
 module.exports = router;

@@ -146,7 +146,7 @@ exports.getDeliverySummary = catchAsyncErrors(async (req, res, next) => {
 
   let summaryByQty = {
     "1L": { delivered: 0, returned: 0 },
-    "2L": { delivered: 0, returned: 0 }
+    "0.5L": { delivered: 0, returned: 0 }
   };
 
   invoices.forEach(inv => {
@@ -156,9 +156,9 @@ exports.getDeliverySummary = catchAsyncErrors(async (req, res, next) => {
     if (qty === "1" || qty === "1L") {
       summaryByQty["1L"].delivered += 1;
       summaryByQty["1L"].returned += returned;
-    } else if (qty === "2" || qty === "2L") {
-      summaryByQty["2L"].delivered += 1;
-      summaryByQty["2L"].returned += returned;
+    } else if (qty === "0.5" || qty === "0.5L") {
+      summaryByQty["0.5L"].delivered += 1;
+      summaryByQty["0.5L"].returned += returned;
     }
 
     totalDeliveredBottles += 1;

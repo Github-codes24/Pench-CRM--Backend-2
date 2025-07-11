@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { getCustomerOrders,getTotalSales,getCustomerSalesById,updateBottleReturnOrDelivery,getDeliveredOrders,getPendingOrders,getBottleReturnSummary,getAllDeliveredInvoices,getAllPendingInvoices,getAllInvoicesWithSummary,getMyUnpaidOrders,acceptInvoiceAndPay,verifyInvoicePayment,getPendingPayments,acceptOrder,getAllOrderHistory } = require("../controller/orderController");
+const { getCustomerOrders,getTotalSales,getCustomerSalesById,updateBottleReturnOrDelivery,getDeliveredOrders,getPendingOrders,getBottleReturnSummary,getAdminNotifications,getAllDeliveredInvoices,getAllPendingInvoices,getAllInvoicesWithSummary,getMyUnpaidOrders,acceptInvoiceAndPay,verifyInvoicePayment,getPendingPayments,acceptOrder,getAllOrderHistory } = require("../controller/orderController");
 const { isAuthenticatedDeliveryBoy } = require("../middlewares/auth");
 
 router.get("/orders/:customerId", getCustomerOrders);
@@ -24,4 +24,7 @@ router.get("/order-history", isAuthenticatedDeliveryBoy,getAllOrderHistory);
 router.get("/delivery/pending-orders", isAuthenticatedDeliveryBoy, getPendingOrders);
 router.get("/delivery/delivered-orders", isAuthenticatedDeliveryBoy, getDeliveredOrders);
 
+
+//notification
+router.get("/getnotifications",getAdminNotifications)
 module.exports = router;

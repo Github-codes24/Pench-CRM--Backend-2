@@ -325,46 +325,72 @@ exports.getAllPendingPayments = catchAsyncErrors(async (req, res, next) => {
 // });
 
 exports.getAllPartialPayments = catchAsyncErrors(async (req, res, next) => {
-  const invoices = await Invoice.find()
-    .populate({
-      path: "customer",
-      select: "name phoneNumber deliveryBoy",
-      populate: {
-        path: "deliveryBoy",
-        select: "name"
-      }
-    })
-    .populate({
-      path: "productId",
-      select: "productType image"
-    })
+  const partialInvoices = await Invoice.find({ paymentStatus: "Partial" })
+    .populate("customer", "name")
     .sort({ createdAt: -1 });
 
-  if (!invoices.length) {
-    return res.status(404).json({
-      success: false,
-      message: "No invoices found"
-    });
-  }
-
-  const invoiceList = invoices.map(inv => ({
+  const data = partialInvoices.map(inv => ({
     invoiceId: inv.invoiceId,
-    productType: inv.productId?.productType || "N/A",
-    productImage: inv.productId?.image || [], // ✅ only this
     customerName: inv.customer?.name || "N/A",
-    deliveryBoyName: inv.customer?.deliveryBoy?.name || "N/A",
-    date: inv.createdAt,
-    totalAmount: inv.price,
-    paidAmount: inv.paidAmount || 0,
-    dueAmount: inv.dueAmount || (inv.price - (inv.paidAmount || 0)),
+    productType: inv.productType,
+    date: inv.createdAt.toLocaleDateString(),
+    amount: inv.price,
+    amountPaid: inv.amountPaid,
+    amountDue: inv.amountDue,
     paymentMode: inv.paymentMode || "N/A",
-    paymentStatus: inv.paymentStatus,
-    // paymentHistory: inv.paymentHistory || []
+    status: inv.paymentStatus
   }));
 
   res.status(200).json({
     success: true,
-    totalInvoices: invoiceList.length,
-    invoices: invoiceList
+    count: partialInvoices.length,
+    data
+  });
+});
+
+
+exports.submitRemainingPayment = catchAsyncErrors(async (req, res, next) => {
+  const { invoiceId, additionalAmountPaid } = req.body;
+
+  if (!invoiceId || !additionalAmountPaid) {
+    return next(new ErrorHandler("Invoice ID and additional amount are required", 400));
+  }
+
+  const invoice = await Invoice.findOne({ invoiceId });
+
+  if (!invoice) {
+    return next(new ErrorHandler("Invoice not found", 404));
+  }
+
+  if (invoice.paymentStatus !== "Partial") {
+    return next(new ErrorHandler("This invoice is not marked as partial", 400));
+  }
+
+  const additionalAmount = Number(additionalAmountPaid);
+  if (isNaN(additionalAmount) || additionalAmount <= 0) {
+    return next(new ErrorHandler("Invalid additional amount", 400));
+  }
+
+  invoice.amountPaid += additionalAmount;
+  invoice.amountDue -= additionalAmount;
+
+  if (invoice.amountDue <= 0) {
+    invoice.amountDue = 0;
+    invoice.paymentStatus = "Paid";
+    invoice.partialPayment = false;
+  }
+
+  await invoice.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Remaining payment submitted successfully",
+    invoice: {
+      invoiceId: invoice.invoiceId,
+      totalAmount: invoice.price,
+      amountPaid: invoice.amountPaid,
+      amountDue: invoice.amountDue,
+      paymentStatus: invoice.paymentStatus
+    }
   });
 });

@@ -7,12 +7,13 @@ const {
   deleteLead,
   addFollowUp,
   convertLeadToCustomer,
-  markLeadNotInterested,getLeadById,getConvertedLeads
+  markLeadNotInterested,getLeadById,getConvertedLeads,getLeadSummary
 } = require("../controller/leadController");
 
 router.get("/leads", getAllLeads);
 router.get("/leadbyid/:id",getLeadById)
 router.post("/addleads", createLead);
+router.get("/leadsummary",getLeadSummary)
 
 router.post("/addfollowup/:id", addFollowUp);
 router.post("/convertedlead/:id/", convertLeadToCustomer);

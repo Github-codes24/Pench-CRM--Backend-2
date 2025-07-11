@@ -20,6 +20,36 @@ exports.createLead = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
+
+// controller/lead.controller.js
+exports.getLeadSummary = catchAsyncErrors(async (req, res, next) => {
+  const totalLeads = await Lead.countDocuments();
+  const convertedLeads = await Lead.countDocuments({ leadOutcome: "Converted" });
+
+  const conversionRate = totalLeads === 0 ? 0 : Math.round((convertedLeads / totalLeads) * 100);
+
+  // Aggregate to find top selling product (most interested product in leads)
+  const topSellingProductAgg = await Lead.aggregate([
+    { $group: { _id: "$product", count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+    { $limit: 1 }
+  ]);
+
+  const topSellingProduct = topSellingProductAgg[0]?._id || "N/A";
+  const topSellingProductCount = topSellingProductAgg[0]?.count || 0;
+
+  res.status(200).json({
+    success: true,
+    analytics: {
+      totalLeads,
+      convertedLeads,
+      conversionRate: `${conversionRate}%`,
+      topSellingProduct,
+      topSellingSubscription: topSellingProductCount,
+    }
+  });
+});
+
 // Add Follow-Up to Lead with auto-generated date
 exports.addFollowUp = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
@@ -53,7 +83,7 @@ exports.addFollowUp = catchAsyncErrors(async (req, res, next) => {
 
 
 // Convert Lead to Customer (Auto)
-exports.convertLeadToCustomer = catchAsyncErrors(async (req, res, next) => {
+exports.convertLeadToCustomerfri = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
 
   // 1. Find the lead
@@ -91,6 +121,56 @@ exports.convertLeadToCustomer = catchAsyncErrors(async (req, res, next) => {
     customer,
   });
 });
+exports.convertLeadToCustomer = catchAsyncErrors(async (req, res, next) => {
+  const { id } = req.params;
+
+  const {
+    name,
+    phoneNumber,
+    productType,
+    deliveryDays,
+    deliveryBoyId,
+    subscriptionPlan,
+    quantity,
+    address
+  } = req.body;
+
+  // ✅ Validate required fields
+  if (!name || !phoneNumber || !productType || !deliveryDays || !subscriptionPlan || !quantity || !address) {
+    return next(new ErrorHandler("All fields are required to convert lead", 400));
+  }
+
+  // ✅ Find the lead
+  const lead = await Lead.findById(id);
+  if (!lead) return next(new ErrorHandler("Lead not found", 404));
+
+  if (lead.leadOutcome === "Converted") {
+    return next(new ErrorHandler("Lead already converted to customer", 400));
+  }
+
+  // ✅ Create the customer using provided data
+  const customer = await Customer.create({
+    name,
+    phoneNumber,
+    productType,
+    deliveryDays,
+    deliveryBoy: deliveryBoyId || null,
+    subscriptionPlan,
+    quantity,
+    address
+  });
+
+  // ✅ Update the lead outcome
+  lead.leadOutcome = "Converted";
+  await lead.save();
+
+  res.status(201).json({
+    success: true,
+    message: "Lead successfully converted to customer",
+    customer
+  });
+});
+
 
 // Mark Lead as Not Interested
 exports.markLeadNotInterested = catchAsyncErrors(async (req, res, next) => {

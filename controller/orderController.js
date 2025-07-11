@@ -6,6 +6,7 @@ const ErrorHandler = require("../utils/errorhandler");
 const mongoose = require("mongoose");
 const Razorpay = require("razorpay");
 const razorpay = require("../utils/razorpay")
+const Notification = require("../models/notificationModel")
 exports.getCustomerOrders = catchAsyncErrors(async (req, res, next) => {
   const { customerId } = req.params;
 
@@ -201,7 +202,7 @@ exports.getMyUnpaidOrders = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Delivery boy not authenticated", 401));
   }
 
-  // Step 1: Find customers assigned to this delivery boy
+  // Step 1: Get customers assigned to delivery boy
   const customers = await Customer.find({ deliveryBoy: deliveryBoyId }).select("_id");
 
   if (customers.length === 0) {
@@ -214,18 +215,18 @@ exports.getMyUnpaidOrders = catchAsyncErrors(async (req, res, next) => {
 
   const customerIds = customers.map((c) => c._id);
 
-  // Step 2: Get unpaid invoices and populate product + customer info
-  const unpaidInvoices = await Invoice.find({
+  // Step 2: Get pending orders
+  const pendingInvoices = await Invoice.find({
     customer: { $in: customerIds },
-    paymentStatus: "Unpaid",
+    status: "Pending",
   })
     .populate("customer", "name phoneNumber address")
-    .populate("productId", "productType description price image"); // <-- populate product info
+    .populate("productId", "productType description price image");
 
   res.status(200).json({
     success: true,
-    count: unpaidInvoices.length,
-    invoices: unpaidInvoices,
+    count: pendingInvoices.length,
+    invoices: pendingInvoices,
   });
 });
 
@@ -308,7 +309,8 @@ exports.acceptOrder = catchAsyncErrors(async (req, res, next) => {
 //     invoice,
 //   });
 // });
-exports.acceptInvoiceAndPay = catchAsyncErrors(async (req, res, next) => {
+
+exports.acceptInvoiceAndPayfri = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
   const { payment } = req.body;
 
@@ -381,6 +383,220 @@ exports.acceptInvoiceAndPay = catchAsyncErrors(async (req, res, next) => {
     invoice,
   });
 });
+
+exports.acceptInvoiceAndPaysat = catchAsyncErrors(async (req, res, next) => {
+  const { id } = req.params;
+  const { payment } = req.body;
+
+  if (!["UPI", "COD"].includes(payment)) {
+    return next(new ErrorHandler("Invalid payment method", 400));
+  }
+
+  const invoice = await Invoice.findById(id).populate("customer");
+  if (!invoice) return next(new ErrorHandler("Invoice not found", 404));
+
+  if (invoice.status !== "Accepted") {
+    return next(new ErrorHandler("Invoice must be accepted before payment", 400));
+  }
+
+  invoice.payment = payment;
+
+  const totalAmount = invoice.price;
+  const amountPaid = invoice.amountPaid || 0;
+  const amountDue = totalAmount - amountPaid;
+
+  // ✅ Case 1: Already paid fully
+  if (amountDue <= 0 && invoice.paymentStatus === "Paid") {
+    invoice.status = "Delivered";
+    await invoice.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Invoice already paid, marked as delivered via COD",
+      invoice,
+    });
+  }
+
+  // ✅ Case 2: Payment is still Unpaid and COD selected — just mark as Delivered, leave paymentStatus
+  if (payment === "COD" && invoice.paymentStatus === "Unpaid") {
+    invoice.status = "Delivered";
+    await invoice.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Invoice marked as delivered via COD (payment still unpaid)",
+      invoice,
+    });
+  }
+
+  // ✅ Case 3: UPI flow — create payment link for remaining due
+  if (payment === "UPI") {
+    const paymentLink = await razorpay.paymentLink.create({
+      amount: Math.round(amountDue * 100),
+      currency: "INR",
+      accept_partial: false,
+      description: `Invoice #${invoice.invoiceId}`,
+      customer: {
+        name: invoice.customerName,
+        contact: invoice.customer.phoneNumber?.toString(),
+        email: invoice.customer.email || "",
+      },
+      notify: {
+        sms: true,
+        email: true,
+      },
+      notes: {
+        "Invoice ID": invoice.invoiceId,
+      },
+      callback_url: `http://localhost:5000/api/v1/verify-payment`,
+      callback_method: "get",
+    });
+
+    invoice.paymentLink = paymentLink.short_url;
+    invoice.paymentLinkId = paymentLink.id;
+    invoice.amountDue = amountDue;
+    invoice.paymentStatus = "Partial";
+    await invoice.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment link generated for pending amount",
+      paymentUrl: paymentLink.short_url,
+      amountDue,
+      invoiceId: invoice.invoiceId,
+    });
+  }
+
+  // ✅ Case 4: COD for partial paid — collect remaining and complete
+  invoice.amountPaid = totalAmount;
+  invoice.amountDue = 0;
+  invoice.paymentStatus = "Paid";
+  invoice.status = "Delivered";
+  await invoice.save();
+
+  return res.status(200).json({
+    success: true,
+    message: "Remaining amount collected via COD. Marked as paid and delivered.",
+    invoice,
+  });
+});
+exports.acceptInvoiceAndPay = catchAsyncErrors(async (req, res, next) => {
+  const { id } = req.params;
+  const { payment, wantToPay } = req.body;
+
+  if (!["UPI", "COD"].includes(payment)) {
+    return next(new ErrorHandler("Invalid payment method", 400));
+  }
+
+  const invoice = await Invoice.findById(id).populate("customer");
+  if (!invoice) return next(new ErrorHandler("Invoice not found", 404));
+  if (invoice.status !== "Accepted") {
+    return next(new ErrorHandler("Invoice must be accepted before payment", 400));
+  }
+
+  invoice.payment = payment;
+
+  const totalAmount = invoice.price;
+  const amountPaid = invoice.amountPaid || 0;
+  const amountDue = totalAmount - amountPaid;
+
+  // ✅ CASE 1: Already Paid
+  if (amountDue <= 0 && invoice.paymentStatus === "Paid") {
+    invoice.status = "Delivered";
+    await invoice.save();
+    return res.status(200).json({
+      success: true,
+      message: "Invoice already paid, marked as delivered",
+      invoice
+    });
+  }
+
+  // ✅ CASE 2: Customer Does NOT Want to Pay
+  if (wantToPay === false) {
+    invoice.status = "Delivered";
+    await invoice.save();
+    return res.status(200).json({
+      success: true,
+      message: "Marked as delivered without payment. Payment status remains.",
+      invoice
+    });
+  }
+
+  // ✅ CASE 3: UPI Payment
+  if (payment === "UPI") {
+    const paymentLink = await razorpay.paymentLink.create({
+      amount: Math.round(amountDue * 100),
+      currency: "INR",
+      accept_partial: false,
+      description: `Invoice #${invoice.invoiceId}`,
+      customer: {
+        name: invoice.customerName,
+        contact: invoice.customer.phoneNumber?.toString(),
+        email: invoice.customer.email || "",
+      },
+      notify: {
+        sms: true,
+        email: true,
+      },
+      notes: {
+        "Invoice ID": invoice.invoiceId,
+      },
+      callback_url: `http://localhost:5000/api/v1/verify-payment`,
+      callback_method: "get",
+    });
+
+    invoice.paymentLink = paymentLink.short_url;
+    invoice.paymentLinkId = paymentLink.id;
+    invoice.amountDue = amountDue;
+    invoice.paymentStatus = "Partial";
+    await invoice.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment link generated for remaining amount",
+      paymentUrl: paymentLink.short_url,
+      amountDue,
+      invoiceId: invoice.invoiceId,
+    });
+  }
+
+  // ✅ CASE 4: COD — Collect remaining and notify
+  invoice.amountPaid = totalAmount;
+  invoice.amountDue = 0;
+  invoice.paymentStatus = "Paid";
+  invoice.status = "Delivered";
+  await invoice.save();
+
+  // ✅ Notification: Send cash collection info
+  const customerName = invoice.customer?.name || "Unknown";
+  const deliveryBoyId = invoice.customer?.deliveryBoy;
+
+  if (deliveryBoyId) {
+    await Notification.create({
+      deliveryBoy: deliveryBoyId,
+      message: `COD Payment of ₹${totalAmount} collected from ${customerName} for Invoice ${invoice.invoiceId}.`,
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: "Remaining amount collected via COD. Invoice delivered.",
+    invoice,
+  });
+});
+
+
+
+exports.getAdminNotifications = catchAsyncErrors(async (req, res, next) => {
+  const notifications = await Notification.find({ admin: null }).sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    count: notifications.length,
+    notifications
+  });
+});
+
 
 exports.verifyInvoicePayment = catchAsyncErrors(async (req, res, next) => {
   const {
@@ -548,19 +764,18 @@ exports.getBottleReturnSummaryfri = catchAsyncErrors(async (req, res, next) => {
 exports.getBottleReturnSummary = catchAsyncErrors(async (req, res, next) => {
   const deliveryBoyId = req.deliveryBoy && req.deliveryBoy._id;
 
-  // ✅ Fetch only 'Delivered' invoices and populate the customer to get deliveryBoy
+  // ✅ Fetch only 'Delivered' invoices and populate customer to get deliveryBoy
   const invoices = await Invoice.find({ status: "Delivered" }).populate("customer");
 
   const summary = {
     totalDeliveredOrders: 0,
-    pickup: { "1L": 0, "2L": 0 },
-    bottleReturns: { "1L": 0, "2L": 0 },
+    pickup: { "1L": 0, "0.5L": 0 },
+    bottleReturns: { "1L": 0, "0.5L": 0 },
     totalBottleReturns: 0,
     bottleReturnedYesNoCount: 0
   };
 
   invoices.forEach(invoice => {
-    // ✅ Check if the invoice belongs to the logged-in delivery boy
     if (
       invoice.customer &&
       invoice.customer.deliveryBoy &&
@@ -571,17 +786,12 @@ exports.getBottleReturnSummary = catchAsyncErrors(async (req, res, next) => {
       const qty = invoice.productQuantity?.toString().trim();
       const hasReturned = invoice.bottleReturnedYesNo === true;
 
-      // Count pickups
       if (qty === "1L" || qty === "1") {
         summary.pickup["1L"] += 1;
-        if (hasReturned) {
-          summary.bottleReturns["1L"] += 1;
-        }
-      } else if (qty === "2L" || qty === "2") {
-        summary.pickup["2L"] += 1;
-        if (hasReturned) {
-          summary.bottleReturns["2L"] += 1;
-        }
+        if (hasReturned) summary.bottleReturns["1L"] += 1;
+      } else if (qty === "0.5L" || qty === "0.5" || qty === "500ml") {
+        summary.pickup["0.5L"] += 1;
+        if (hasReturned) summary.bottleReturns["0.5L"] += 1;
       }
 
       if (hasReturned) {
