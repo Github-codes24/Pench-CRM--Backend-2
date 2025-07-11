@@ -6,68 +6,12 @@ const DeliveryBoy = require("../models/deliveryBoyModel");
 
 
 
-exports.isAuthenticatedUser = catchAsyncErrors(async (req, res, next) => {
-  const token = req.cookies.token;
-
-  if (!token) {
-    return next(new ErrorHander("Please login to access this resource", 401));
-  }
-
-  const decodedData = jwt.verify(token, process.env.JWT_SECRET);
-  req.user = await User.findById(decodedData.id);
-
-  next();
-});
-
-exports.isAuthenticatedDeliveryBoy = catchAsyncErrors(async (req, res, next) => {
-  const token = req.cookies.token;
-
-  if (!token) {
-    return next(new ErrorHander("Please login to access this resource", 401));
-  }
-
-  const decodedData = jwt.verify(token, process.env.JWT_SECRET);
-  req.deliveryBoy = await DeliveryBoy.findById(decodedData.id);
-
-  next();
-});
-exports.isAuthenticatedVendor = catchAsyncErrors(async (req, res, next) => {
-  const token = req.cookies.token;
-
-  if (!token) {
-    return next(new ErrorHander("Please login to access this resource", 401));
-  }
-
-  const decodedData = jwt.verify(token, process.env.JWT_SECRET);
-  req.vendor = await Vendor.findById(decodedData.id);
-
-  next();
-});
-
-exports.isAuthenticatedDistributor = catchAsyncErrors(async (req, res, next) => {
-  const token = req.cookies.token;
-
-  if (!token) {
-    return next(new ErrorHander("Please login to access this resource", 401));
-  }
-
-  const decodedData = jwt.verify(token, process.env.JWT_SECRET);
-  req.distributor = await Distributor.findById(decodedData.id);
-
-  next();
-});
-
-
-//header
-
 // exports.isAuthenticatedUser = catchAsyncErrors(async (req, res, next) => {
-//   const authHeader = req.headers.authorization;
+//   const token = req.cookies.token;
 
-//   if (!authHeader || !authHeader.startsWith("Bearer ")) {
+//   if (!token) {
 //     return next(new ErrorHander("Please login to access this resource", 401));
 //   }
-
-//   const token = authHeader.split(" ")[1];
 
 //   const decodedData = jwt.verify(token, process.env.JWT_SECRET);
 //   req.user = await User.findById(decodedData.id);
@@ -75,36 +19,54 @@ exports.isAuthenticatedDistributor = catchAsyncErrors(async (req, res, next) => 
 //   next();
 // });
 
+// exports.isAuthenticatedDeliveryBoy = catchAsyncErrors(async (req, res, next) => {
+//   const token = req.cookies.token;
 
-// exports.isAuthenticatedVendor = catchAsyncErrors(async (req, res, next) => {
-//   const authHeader = req.headers.authorization;
-
-//   if (!authHeader || !authHeader.startsWith("Bearer ")) {
+//   if (!token) {
 //     return next(new ErrorHander("Please login to access this resource", 401));
 //   }
 
-//   const token = authHeader.split(" ")[1];
-
 //   const decodedData = jwt.verify(token, process.env.JWT_SECRET);
-//   req.vendor = await Vendor.findById(decodedData.id);
+//   req.deliveryBoy = await DeliveryBoy.findById(decodedData.id);
 
 //   next();
 // });
 
-// exports.isAuthenticatedDistributor = catchAsyncErrors(async (req, res, next) => {
-//   const authHeader = req.headers.authorization;
 
-//   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-//     return next(new ErrorHander("Please login to access this resource", 401));
-//   }
 
-//   const token = authHeader.split(" ")[1];
+//header
 
-//   const decodedData = jwt.verify(token, process.env.JWT_SECRET);
-//   req.distributor = await Distributor.findById(decodedData.id);
+exports.isAuthenticatedUser = catchAsyncErrors(async (req, res, next) => {
+  const authHeader = req.headers.authorization;
 
-//   next();
-// });
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return next(new ErrorHander("Please login to access this resource", 401));
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  const decodedData = jwt.verify(token, process.env.JWT_SECRET);
+  req.user = await User.findById(decodedData.id);
+
+  next();
+});
+
+
+exports.isAuthenticatedDeliveryBoy = catchAsyncErrors(async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return next(new ErrorHander("Please login to access this resource", 401));
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  const decodedData = jwt.verify(token, process.env.JWT_SECRET);
+  req.deliveryBoy = await DeliveryBoy.findById(decodedData.id);
+
+  next();
+});
+
 
 exports.authorizeRoles = (...roles) =>{
 
