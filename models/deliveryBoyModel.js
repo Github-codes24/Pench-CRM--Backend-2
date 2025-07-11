@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
-const deliveryBoySchema = new mongoose.Schema(
+const deliveryBoySchema = new mongoose.Schema(  
   {
     name: {
       type: String,
@@ -41,7 +41,23 @@ const deliveryBoySchema = new mongoose.Schema(
         ref: "Customer",
       }
     ],
+    assignedProductStock: [
+  {
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      min: [1, "Quantity must be at least 1"],
+    },
+  }
+],
+    
   },
+  
   {
     timestamps: true,
   }

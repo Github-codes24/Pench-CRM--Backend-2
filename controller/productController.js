@@ -2,20 +2,20 @@
 const Product = require("../models/productModel"); // adjust path if needed
 const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const ErrorHandler = require("../utils/errorhandler");
-
+const Invoice = require("../models/invoiceModel"); // Import Invoice model
+const DeliveryBoy = require("../models/deliveryBoyModel"); // Import DeliveryBoy model
 exports.createProduct = catchAsyncErrors(async (req, res, next) => {
-    const { name, description, productType, size, quantity, price } = req.body;
+    const {description, productType,stock, quantity, price } = req.body;
 
-    if (!name || !description || !quantity || !price || !size) {
+    if (!description || !quantity || !price ) {
         return next(new ErrorHandler("All fields are required", 400));
     }
 
     const productData = {
-        name,
         description,
         quantity,
+        stock,
         productType,
-        size,
         price: Number(price),
         user: req.user ? req.user._id : null,
         image: [],
@@ -162,16 +162,118 @@ exports.getSellerProducts = catchAsyncErrors(async (req, res, next) => {
 });
 
 exports.deleteProduct = catchAsyncErrors(async (req, res, next) => {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) {
         return next(new ErrorHandler("Product not found", 404));
     }
 
-    await product.remove();
-
-    res.status(200).json({
+        res.status(200).json({
         success: true,
         message: "Product deleted successfully",
     });
 });
 
+
+// GET Product Dashboard Stats
+exports.getProductDashboardStats = catchAsyncErrors(async (req, res, next) => {
+  // Fetch all products
+  const products = await Product.find();
+
+  // Initialize counters
+  let totalStock = 0;
+  let lowStockCount = 0;
+  let activeProducts = 0;
+  let soldMap = {};
+
+  // Aggregate product sales from invoices
+  const invoices = await Invoice.find();
+
+  for (const invoice of invoices) {
+    const key = invoice.productType;
+    const quantity = Number(invoice.productQuantity) || 0;
+    soldMap[key] = (soldMap[key] || 0) + quantity;
+  }
+
+  const productStats = products.map(product => {
+    const soldUnits = soldMap[product.productType] || 0;
+    totalStock += product.stock;
+
+    if (product.stock < 10) lowStockCount++;
+    if (product.stock > 0) activeProducts++;
+
+    return {
+      productType: product.productType,
+      description: product.description,
+      size: product.size,
+      price: product.price,
+      stock: product.stock,
+      soldUnits,
+    };
+  });
+
+  // Sort top selling products
+  const topSelling = [...productStats].sort((a, b) => b.soldUnits - a.soldUnits).slice(0, 5);
+
+  res.status(200).json({
+    success: true,
+    totalProducts: products.length,
+    totalStock,
+    totalSoldUnits: Object.values(soldMap).reduce((a, b) => a + b, 0),
+    lowStockCount,
+    activeProducts,
+    topSellingProducts: topSelling,
+    products: productStats
+  });
+});
+
+
+exports.assignProductToDeliveryBoy = catchAsyncErrors(async (req, res, next) => {
+  const { deliveryBoyId, productId, quantity } = req.body;
+
+  if (!deliveryBoyId || !productId || !quantity) {
+    return next(new ErrorHandler("All fields are required", 400));
+  }
+
+  const product = await Product.findById(productId);
+  if (!product) {
+    return next(new ErrorHandler("Product not found", 404));
+  }
+
+  if (product.stock < quantity) {
+    return next(new ErrorHandler("Not enough product stock available", 400));
+  }
+
+  const deliveryBoy = await DeliveryBoy.findById(deliveryBoyId);
+  if (!deliveryBoy) {
+    return next(new ErrorHandler("Delivery boy not found", 404));
+  }
+
+  // Update or add assigned product stock
+  const existingIndex = deliveryBoy.assignedProductStock.findIndex(p =>
+    p.productId.toString() === productId
+  );
+
+  if (existingIndex !== -1) {
+    deliveryBoy.assignedProductStock[existingIndex].quantity += quantity;
+  } else {
+    deliveryBoy.assignedProductStock.push({ productId, quantity });
+  }
+
+  await deliveryBoy.save();
+
+  // Deduct from product stock
+  product.stock -= quantity;
+  await product.save();
+
+  // Populate product details
+  await deliveryBoy.populate({
+    path: "assignedProductStock.productId",
+    select: "productType price description"
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Product assigned to delivery boy successfully",
+    deliveryBoy
+  });
+});

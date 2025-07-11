@@ -13,10 +13,6 @@ const productSchema = new mongoose.Schema(
             enum: ["A2 Milk", "A2 Cow Ghee", "Paneer", "Buttermilk", "Curd"],
             required: [true, "Product type is required"],
         },
-        name: {
-            type: String,
-            required: [true, "Product name is required"],
-        },
         price: {
             type: Number,
             required: [true, "Price is required"],
@@ -25,7 +21,7 @@ const productSchema = new mongoose.Schema(
             type: String,
         },
         quantity: {
-            type: String, // e.g., "1 Ltr", "500 ml"
+            type: Number, // e.g., "1 Ltr", "500 ml"
             required: true,
         },
         stock: {
