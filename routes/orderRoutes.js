@@ -15,7 +15,7 @@ router.get(
 router.put("/invoice/accept/:id", isAuthenticatedDeliveryBoy, acceptOrder);
 router.put("/invoice/accept-pay/:id", isAuthenticatedDeliveryBoy, acceptInvoiceAndPay);
 router.get("/verify-payment",verifyInvoicePayment);
-router.get("/summary/bottle-return", getBottleReturnSummary);
+router.get("/summary/bottle-return",isAuthenticatedDeliveryBoy, getBottleReturnSummary);
 router.get("/all-invoices", isAuthenticatedDeliveryBoy, getAllInvoicesWithSummary);
 router.get("/pending-invoices", isAuthenticatedDeliveryBoy, getAllPendingInvoices);
 router.get("/delivered-invoices", isAuthenticatedDeliveryBoy, getAllDeliveredInvoices);

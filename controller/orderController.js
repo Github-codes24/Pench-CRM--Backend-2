@@ -504,7 +504,7 @@ exports.getBottleReturnSummaryold = catchAsyncErrors(async (req, res, next) => {
     ...summary
   });
 });
-exports.getBottleReturnSummary = catchAsyncErrors(async (req, res, next) => {
+exports.getBottleReturnSummaryfri = catchAsyncErrors(async (req, res, next) => {
   const invoices = await Invoice.find({ status: "Delivered" });
 
   const summary = {
@@ -545,6 +545,61 @@ exports.getBottleReturnSummary = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
+exports.getBottleReturnSummary = catchAsyncErrors(async (req, res, next) => {
+  const deliveryBoyId = req.deliveryBoy && req.deliveryBoy._id;
+
+  // ✅ Fetch only 'Delivered' invoices and populate the customer to get deliveryBoy
+  const invoices = await Invoice.find({ status: "Delivered" }).populate("customer");
+
+  const summary = {
+    totalDeliveredOrders: 0,
+    pickup: { "1L": 0, "2L": 0 },
+    bottleReturns: { "1L": 0, "2L": 0 },
+    totalBottleReturns: 0,
+    bottleReturnedYesNoCount: 0
+  };
+
+  invoices.forEach(invoice => {
+    // ✅ Check if the invoice belongs to the logged-in delivery boy
+    if (
+      invoice.customer &&
+      invoice.customer.deliveryBoy &&
+      invoice.customer.deliveryBoy.toString() === deliveryBoyId.toString()
+    ) {
+      summary.totalDeliveredOrders += 1;
+
+      const qty = invoice.productQuantity?.toString().trim();
+      const hasReturned = invoice.bottleReturnedYesNo === true;
+
+      // Count pickups
+      if (qty === "1L" || qty === "1") {
+        summary.pickup["1L"] += 1;
+        if (hasReturned) {
+          summary.bottleReturns["1L"] += 1;
+        }
+      } else if (qty === "2L" || qty === "2") {
+        summary.pickup["2L"] += 1;
+        if (hasReturned) {
+          summary.bottleReturns["2L"] += 1;
+        }
+      }
+
+      if (hasReturned) {
+        summary.totalBottleReturns += 1;
+        summary.bottleReturnedYesNoCount += 1;
+      }
+    }
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Bottle return summary fetched successfully",
+    ...summary
+  });
+});
+
+
+
 
 
 // controller/invoiceController.js
@@ -577,8 +632,50 @@ exports.getBottleReturnSummary = catchAsyncErrors(async (req, res, next) => {
 // });
 
 
+// exports.getAllInvoicesWithSummary = catchAsyncErrors(async (req, res, next) => {
+//   const invoices = await Invoice.find().populate("customer");
+
+//   // Summary
+//   const summary = {
+//     totalInvoices: invoices.length,
+//     totalPaid: 0,
+//     totalUnpaid: 0,
+//     totalPending: 0,
+//     totalDelivered: 0,
+//     totalBottleReturned: 0,
+//     totalBottleIssued: 0
+//   };
+
+//   invoices.forEach((invoice) => {
+//     if (invoice.paymentStatus === "Paid") summary.totalPaid += 1;
+//     if (invoice.paymentStatus === "Unpaid") summary.totalUnpaid += 1;
+//     if (invoice.status === "Pending") summary.totalPending += 1;
+//     if (invoice.status === "Delivered") summary.totalDelivered += 1;
+//     if (invoice.bottleReturnedYesNo) summary.totalBottleReturned += 1;
+//     if (invoice.bottleIssued) summary.totalBottleIssued += 1;
+//   });
+
+//   res.status(200).json({
+//     success: true,
+//     message: "All invoices fetched with summary",
+//     summary,
+//     invoices
+//   });
+// });
+
 exports.getAllInvoicesWithSummary = catchAsyncErrors(async (req, res, next) => {
-  const invoices = await Invoice.find().populate("customer");
+  const deliveryBoyId = req.deliveryBoy && req.deliveryBoy._id;
+
+  const allInvoices = await Invoice.find().populate("customer");
+
+  // ✅ Filter invoices for this delivery boy
+  const invoices = allInvoices.filter(invoice => {
+    return (
+      invoice.customer &&
+      invoice.customer.deliveryBoy &&
+      invoice.customer.deliveryBoy.toString() === deliveryBoyId.toString()
+    );
+  });
 
   // Summary
   const summary = {
@@ -609,8 +706,27 @@ exports.getAllInvoicesWithSummary = catchAsyncErrors(async (req, res, next) => {
 });
 
 // Get all pending invoices
+// exports.getAllPendingInvoices = catchAsyncErrors(async (req, res, next) => {
+//   const pendingInvoices = await Invoice.find({ status: "Pending" }).populate("customer");
+
+//   res.status(200).json({
+//     success: true,
+//     count: pendingInvoices.length,
+//     invoices: pendingInvoices,
+//   });
+// });
 exports.getAllPendingInvoices = catchAsyncErrors(async (req, res, next) => {
-  const pendingInvoices = await Invoice.find({ status: "Pending" }).populate("customer");
+  const deliveryBoyId = req.deliveryBoy && req.deliveryBoy._id;
+
+  // ✅ Get all pending invoices and populate customer to access deliveryBoy
+  const allPendingInvoices = await Invoice.find({ status: "Pending" }).populate("customer");
+
+  // ✅ Filter by deliveryBoy assigned to the customer
+  const pendingInvoices = allPendingInvoices.filter(invoice =>
+    invoice.customer &&
+    invoice.customer.deliveryBoy &&
+    invoice.customer.deliveryBoy.toString() === deliveryBoyId.toString()
+  );
 
   res.status(200).json({
     success: true,
@@ -620,8 +736,27 @@ exports.getAllPendingInvoices = catchAsyncErrors(async (req, res, next) => {
 });
 
 // Get all delivered invoices
+// exports.getAllDeliveredInvoices = catchAsyncErrors(async (req, res, next) => {
+//   const deliveredInvoices = await Invoice.find({ status: "Delivered" }).populate("customer");
+
+//   res.status(200).json({
+//     success: true,
+//     count: deliveredInvoices.length,
+//     invoices: deliveredInvoices,
+//   });
+// });
 exports.getAllDeliveredInvoices = catchAsyncErrors(async (req, res, next) => {
-  const deliveredInvoices = await Invoice.find({ status: "Delivered" }).populate("customer");
+  const deliveryBoyId = req.deliveryBoy && req.deliveryBoy._id;
+
+  // ✅ Get all delivered invoices and populate customer
+  const allDeliveredInvoices = await Invoice.find({ status: "Delivered" }).populate("customer");
+
+  // ✅ Filter by deliveryBoy assigned to customer
+  const deliveredInvoices = allDeliveredInvoices.filter(invoice =>
+    invoice.customer &&
+    invoice.customer.deliveryBoy &&
+    invoice.customer.deliveryBoy.toString() === deliveryBoyId.toString()
+  );
 
   res.status(200).json({
     success: true,
@@ -629,6 +764,7 @@ exports.getAllDeliveredInvoices = catchAsyncErrors(async (req, res, next) => {
     invoices: deliveredInvoices,
   });
 });
+
 
 // controllers/invoiceController.js
 exports.updateBottleReturnOrDelivery = catchAsyncErrors(async (req, res, next) => {
