@@ -7,7 +7,10 @@ exports.generateInvoiceMessage = (invoice) => {
 📅 *Date:* ${new Date(invoice.createdAt).toLocaleDateString()}
 👤 *Customer:* ${invoice.customerName}
 📦 *Subscription:* ${invoice.subscriptionPlan || "N/A"}
+  *product Type:* ${invoice.productType || "N/A"}
+  *product Quntity:* ${invoice.productQuantity || "N/A"}
 💰 *Amount:* ₹${invoice.price}
+   *Total Amount:* ₹${invoice.price}
 💳 *Status:* ${invoice.paymentStatus}
 📝 *Payment Mode:* ${invoice.paymentMode || "N/A"}
 

@@ -538,18 +538,72 @@ exports.sendInvoiceOnWhatsApp = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-exports.sendMultipleInvoicesOnWhatsApp = catchAsyncErrors(async (req, res, next) => {
-  const { invoiceIds } = req.body;
+// exports.sendMultipleInvoicesOnWhatsApp = catchAsyncErrors(async (req, res, next) => {
+//   const { invoiceIds } = req.body;
 
-  if (!Array.isArray(invoiceIds) || invoiceIds.length === 0) {
-    return next(new ErrorHandler("Invoice IDs are required", 400));
+//   if (!Array.isArray(invoiceIds) || invoiceIds.length === 0) {
+//     return next(new ErrorHandler("Invoice IDs are required", 400));
+//   }
+
+//   const invoices = await Invoice.find({ invoiceId: { $in: invoiceIds } }).populate("customer");
+
+//   const links = invoices.map((invoice) => {
+//     const message = generateInvoiceMessage(invoice);
+//     const phone = invoice.customer?.phoneNumber || "9999999999";
+//     return {
+//       invoiceId: invoice.invoiceId,
+//       customerName: invoice.customer?.name,
+//       whatsappLink: `https://wa.me/91${phone}?text=${message}`
+//     };
+//   });
+
+//   res.status(200).json({
+//     success: true,
+//     count: links.length,
+//     links
+//   });
+// });
+
+exports.sendMultipleInvoicesOnWhatsAppsat = catchAsyncErrors(async (req, res, next) => {
+  // ✅ 1. Get all invoices and populate customer info
+  const invoices = await Invoice.find().populate("customer");
+
+  if (!invoices || invoices.length === 0) {
+    return next(new ErrorHandler("No invoices found", 404));
   }
 
-  const invoices = await Invoice.find({ invoiceId: { $in: invoiceIds } }).populate("customer");
-
+  // ✅ 2. Generate WhatsApp message links
   const links = invoices.map((invoice) => {
-    const message = generateInvoiceMessage(invoice);
+    const message = generateInvoiceMessage(invoice); // You must already have this function
     const phone = invoice.customer?.phoneNumber || "9999999999";
+
+    return {
+      invoiceId: invoice.invoiceId,
+      customerName: invoice.customer?.name,
+      whatsappLink: `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`
+    };
+  });
+
+  // ✅ 3. Return all WhatsApp links
+  res.status(200).json({
+    success: true,
+    count: links.length,
+    links
+  });
+});
+exports.sendMultipleInvoicesOnWhatsApp = catchAsyncErrors(async (req, res, next) => {
+  // 1. Fetch all invoices
+  const invoices = await Invoice.find().populate("customer");
+
+  if (!invoices || invoices.length === 0) {
+    return next(new ErrorHandler("No invoices found", 404));
+  }
+
+  // 2. Create WhatsApp message links
+  const links = invoices.map((invoice) => {
+    const phone = invoice.customer?.phoneNumber || "9999999999";
+    const message = generateInvoiceMessage(invoice); // Pre-encoded inside
+
     return {
       invoiceId: invoice.invoiceId,
       customerName: invoice.customer?.name,
@@ -557,6 +611,7 @@ exports.sendMultipleInvoicesOnWhatsApp = catchAsyncErrors(async (req, res, next)
     };
   });
 
+  // 3. Respond with all links
   res.status(200).json({
     success: true,
     count: links.length,
