@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { getCustomerOrders,getTotalSales,getCustomerSalesById,updateBottleReturnOrDelivery,getDeliveredOrders,getPendingOrders,getBottleReturnSummary,getAdminNotifications,getAllDeliveredInvoices,getAllPendingInvoices,getAllInvoicesWithSummary,getMyUnpaidOrders,acceptInvoiceAndPay,verifyInvoicePayment,getPendingPayments,acceptOrder,getAllOrderHistory } = require("../controller/orderController");
+const { getCustomerOrders,getTotalSales,getCustomerSalesById,getMyAcceptedOrders,updateBottleReturnOrDelivery,getDeliveredOrders,getPendingOrders,getBottleReturnSummary,getAdminNotifications,getAllDeliveredInvoices,getAllPendingInvoices,getAllInvoicesWithSummary,getMyUnpaidOrders,acceptInvoiceAndPay,verifyInvoicePayment,getPendingPayments,acceptOrder,getAllOrderHistory } = require("../controller/orderController");
 const { isAuthenticatedDeliveryBoy } = require("../middlewares/auth");
 
 router.get("/orders/:customerId", getCustomerOrders);
@@ -12,6 +12,8 @@ router.get(
   isAuthenticatedDeliveryBoy,
   getMyUnpaidOrders
 );
+router.get("/accepted-orders", isAuthenticatedDeliveryBoy, getMyAcceptedOrders);
+
 router.put("/invoice/accept/:id", isAuthenticatedDeliveryBoy, acceptOrder);
 router.put("/invoice/accept-pay/:id", isAuthenticatedDeliveryBoy, acceptInvoiceAndPay);
 router.get("/verify-payment",verifyInvoicePayment);

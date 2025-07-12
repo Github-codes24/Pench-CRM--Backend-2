@@ -229,6 +229,41 @@ exports.getMyUnpaidOrders = catchAsyncErrors(async (req, res, next) => {
     invoices: pendingInvoices,
   });
 });
+exports.getMyAcceptedOrders = catchAsyncErrors(async (req, res, next) => {
+  const deliveryBoyId = req.deliveryBoy?._id || req.deliveryBoy;
+
+  if (!deliveryBoyId) {
+    return next(new ErrorHandler("Delivery boy not authenticated", 401));
+  }
+
+  // ✅ Step 1: Get customers assigned to delivery boy
+  const customers = await Customer.find({ deliveryBoy: deliveryBoyId }).select("_id");
+
+  if (customers.length === 0) {
+    return res.status(200).json({
+      success: true,
+      message: "No customers assigned to this delivery boy",
+      invoices: [],
+    });
+  }
+
+  const customerIds = customers.map((c) => c._id);
+
+  // ✅ Step 2: Get accepted invoices
+  const acceptedInvoices = await Invoice.find({
+    customer: { $in: customerIds },
+    status: "Accepted", // <- here’s the key change
+  })
+    .populate("customer", "name phoneNumber address")
+    .populate("productId", "productType description price image");
+
+  res.status(200).json({
+    success: true,
+    count: acceptedInvoices.length,
+    invoices: acceptedInvoices,
+  });
+});
+
 
 
 // Accept an order by invoice ID
