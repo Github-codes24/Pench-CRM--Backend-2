@@ -24,7 +24,7 @@ exports.getCustomerOrders = catchAsyncErrors(async (req, res, next) => {
     date: inv.invoiceDate.toDateString(),
     productType: inv.productType,
     quantity: inv.productQuantity,
-    price: inv.price/inv.productQuantity,
+    price: inv.price / inv.productQuantity,
     totalPrice: parseFloat(inv.price), // optionally calculate if multiple quantities
     paymentStatus: inv.paymentStatus,
     subscriptionPlan: inv.subscriptionPlan,
@@ -1141,7 +1141,7 @@ exports.getAllOrderHistorysat = catchAsyncErrors(async (req, res, next) => {
     return {
       customerName: inv.customer?.name || "N/A",
       address: inv.customer?.address || "N/A",
-      productImage : inv.image,
+      productImage: inv.image,
       productType: inv.productType,
       amount: inv.price,
       bottleReturned: isReturned ? "Yes" : "No",
@@ -1270,13 +1270,16 @@ exports.getPendingOrders = catchAsyncErrors(async (req, res, next) => {
   const pendingOrders = await Invoice.find({
     status: "Pending",
     customer: { $in: assignedCustomerIds }
-  }).populate("customer", "name address");
+  }).populate("customer", "name address")
+    .populate("productId", "image productType");
+
 
   // Step 3: Map response
   const result = pendingOrders.map(order => ({
     customerName: order.customer?.name || "N/A",
     address: order.customer?.address || "N/A",
     productType: order.productType,
+    productImage: inv.productId?.image?.[0] || null,  // Use first image if available
     productQuantity: order.productQuantity,
     amount: order.price,
     bottleReturned: order.bottleReturnedYesNo ? "Yes" : "No",
@@ -1321,13 +1324,15 @@ exports.getDeliveredOrders = catchAsyncErrors(async (req, res, next) => {
   const deliveredOrders = await Invoice.find({
     status: "Delivered",
     customer: { $in: assignedCustomerIds }
-  }).populate("customer", "name address");
+  }).populate("customer", "name address")
+    .populate("productId", "image productType");
 
   // Step 3: Format response
   const result = deliveredOrders.map(order => ({
     customerName: order.customer?.name || "N/A",
     address: order.customer?.address || "N/A",
     productType: order.productType,
+    productImage: inv.productId?.image?.[0] || null,  // Use first image if available
     productQuantity: order.productQuantity,
     amount: order.price,
     bottleReturned: order.bottleReturnedYesNo ? "Yes" : "No",
