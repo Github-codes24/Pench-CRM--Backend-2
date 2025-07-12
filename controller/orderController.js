@@ -1082,7 +1082,7 @@ exports.updateBottleReturnOrDelivery = catchAsyncErrors(async (req, res, next) =
 // });
 
 // API: Get Order History for Authenticated Delivery Boy
-exports.getAllOrderHistory = catchAsyncErrors(async (req, res, next) => {
+exports.getAllOrderHistorysat = catchAsyncErrors(async (req, res, next) => {
   const deliveryBoyId = req.deliveryBoy?._id;
 
   if (!deliveryBoyId) {
@@ -1141,7 +1141,87 @@ exports.getAllOrderHistory = catchAsyncErrors(async (req, res, next) => {
     return {
       customerName: inv.customer?.name || "N/A",
       address: inv.customer?.address || "N/A",
+      productImage : inv.image,
       productType: inv.productType,
+      amount: inv.price,
+      bottleReturned: isReturned ? "Yes" : "No",
+      isDelivered: inv.isDelivered,
+      status: inv.status,
+      date: inv.createdAt
+    };
+  });
+
+  // Step 4: Return response
+  res.status(200).json({
+    success: true,
+    message: "Order history with summary fetched successfully",
+    summary,
+    orders: orderHistory
+  });
+});
+exports.getAllOrderHistory = catchAsyncErrors(async (req, res, next) => {
+  const deliveryBoyId = req.deliveryBoy?._id;
+
+  if (!deliveryBoyId) {
+    return res.status(401).json({
+      success: false,
+      message: "Unauthorized. Please login as delivery boy."
+    });
+  }
+
+  // Step 1: Get delivery boy details
+  const deliveryBoy = await DeliveryBoy.findById(deliveryBoyId);
+  if (!deliveryBoy || deliveryBoy.assignedCustomers.length === 0) {
+    return res.status(200).json({
+      success: true,
+      message: "No customers assigned to this delivery boy.",
+      summary: {
+        totalOrders: 0,
+        totalDelivered: 0,
+        totalPending: 0,
+        totalAccepted: 0,
+        totalBottleReturnedYes: 0,
+        totalBottleReturnedNo: 0
+      },
+      orders: []
+    });
+  }
+
+  const assignedCustomerIds = deliveryBoy.assignedCustomers.map(id =>
+    new mongoose.Types.ObjectId(id)
+  );
+
+  // Step 2: Fetch all relevant invoices with populated customer and product info
+  const invoices = await Invoice.find({
+    customer: { $in: assignedCustomerIds }
+  })
+    .populate("customer", "name address")
+    .populate("productId", "image productType");
+
+  // Step 3: Summary counters
+  const summary = {
+    totalOrders: invoices.length,
+    totalDelivered: 0,
+    totalPending: 0,
+    totalAccepted: 0,
+    totalBottleReturnedYes: 0,
+    totalBottleReturnedNo: 0
+  };
+
+  const orderHistory = invoices.map(inv => {
+    const isReturned = inv.bottleReturnedYesNo === true;
+
+    if (inv.status === "Delivered") summary.totalDelivered += 1;
+    if (inv.status === "Pending") summary.totalPending += 1;
+    if (inv.status === "Accepted") summary.totalAccepted += 1;
+    if (isReturned) summary.totalBottleReturnedYes += 1;
+    else summary.totalBottleReturnedNo += 1;
+
+    return {
+      customerName: inv.customer?.name || "N/A",
+      address: inv.customer?.address || "N/A",
+      productType: inv.productType,
+      productImage: inv.productId?.image?.[0] || null,  // Use first image if available
       amount: inv.price,
       bottleReturned: isReturned ? "Yes" : "No",
       isDelivered: inv.isDelivered,
