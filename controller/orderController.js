@@ -289,6 +289,7 @@ exports.acceptOrder = catchAsyncErrors(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Invoice accepted successfully",
+    _id: invoice._id,
     invoice,
   });
 });
