@@ -703,12 +703,11 @@ exports.deleteInvoice = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Invoice not found", 404));
   }
 
-  await invoice.remove();
+  await invoice.deleteOne(); // ✅ use deleteOne() instead of remove()
 
   res.status(200).json({
     success: true,
     message: "Invoice deleted successfully"
   });
 });
-
 
