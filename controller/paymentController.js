@@ -157,7 +157,8 @@ exports.getPaymentDetailsById = catchAsyncErrors(async (req, res, next) => {
     deliveryBoyName: invoice.customer?.deliveryBoy?.name || "N/A",
     deliveryBoyPhone: invoice.customer?.deliveryBoy?.phoneNumber || "N/A",
     price: invoice.price,
-    paymentMethod: invoice.payment || "N/A",
+    paymentMethod: invoice.paymentMode || "N/A",
+    razorpayPaymentId : invoice.razorpayPaymentId || "N/A",
     paymentStatus: invoice.paymentStatus,
     invoiceDate: invoice.createdAt,
     status: invoice.status
