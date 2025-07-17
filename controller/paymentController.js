@@ -54,6 +54,7 @@ exports.getPaymentSummary = catchAsyncErrors(async (req, res, next) => {
   const partialCount = invoices.filter(inv => inv.paymentStatus === "Paid" || "Unpaid").length; // optional if "Partial" used
 
   const paymentList = invoices.map(inv => ({
+    _id: inv._id,
     date: inv.createdAt,
     productType: inv.productType || "N/A", // pulled directly from invoice
     customerName: inv.customer?.name || "N/A",
