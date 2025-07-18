@@ -455,6 +455,36 @@ exports.createSubscriptionPlan = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
+exports.getAllSubscriptionPlans = catchAsyncErrors(async (req, res, next) => {
+  const plans = await SubscriptionPlan.find().populate({
+    path: "products",
+    select: "productType price quantity size stock"
+  });
+
+  const formattedPlans = plans.map(plan => ({
+    _id: plan._id,
+    subscriptionPlan: plan.subscriptionPlan,
+    discount: plan.discount,
+    totalPrice: plan.totalPrice,
+    deliveryTime: plan.deliveryTime,
+    products: plan.products.map(prod => ({
+      _id: prod._id,
+      productType: prod.productType,
+      price: prod.price,
+      quantity: prod.quantity,
+      size: prod.size,
+      stock: prod.stock
+    }))
+  }));
+
+  res.status(200).json({
+    success: true,
+    total: formattedPlans.length,
+    subscriptionPlans: formattedPlans
+  });
+});
+
+
 // controllers/subscriptionController.js
 exports.updateSubscription = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;

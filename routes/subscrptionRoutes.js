@@ -5,6 +5,7 @@ const {
   editSubscription,
   getAllSubscriptions,
   getSubscriptionById,
+  getAllSubscriptionPlans,
   updateSubscription,
   createSubscriptionPlan,
   deleteSubscription
@@ -17,6 +18,8 @@ router.put("/plans/:id", editSubscription);
 router.get("/subscriptions/active", getAllSubscriptions);
 
 router.post("/subscription-plans", createSubscriptionPlan);
+router.get("/subscription-plans", getAllSubscriptionPlans);
+
 router.put("/subscriptions/:id", updateSubscription);
 
 router.get("/subscriptions/details/:id", getSubscriptionById);
