@@ -28,7 +28,7 @@ router.post("/login", loginUser);
 router.get("/logout", logout);
 
 // @route   GET /api/v1/users/:id
-router.get("/users/:id", isAuthenticatedUser, getUserDetails);
+router.get("/get/userprofile", isAuthenticatedUser, getUserDetails);
 
 // @route   GET /api/v1/sellers
 router.get("/users", isAuthenticatedUser, getAllSellers);

@@ -71,10 +71,9 @@ exports.logout = catchAsyncErrors(async (req, res, next) => {
         message: "Logged out successfully",
     });
 });
-
 // Get Single User Details
 exports.getUserDetails = catchAsyncErrors(async (req, res, next) => {
-    const userId = req.params.id;
+    const userId = req.user.id;
 
     const user = await User.findById(userId);
 
