@@ -7,7 +7,9 @@ const cors = require("cors"); // <--- Added
 // Enable CORS for a specific origin
 app.use(cors({
   origin: "*", // <-- exact frontend path
-  credentials: true
+  credentials: true,
+  optionsSuccessStatus: 200  // <-- Added for legacy browsers handling
+
 }));
 
 // Middlewares
