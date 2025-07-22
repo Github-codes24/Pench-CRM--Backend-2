@@ -516,7 +516,8 @@ exports.acceptInvoiceAndPaysat = catchAsyncErrors(async (req, res, next) => {
     invoice,
   });
 });
-exports.acceptInvoiceAndPay = catchAsyncErrors(async (req, res, next) => {
+
+exports.acceptInvoiceAndPaymonday = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
   const { payment, wantToPay } = req.body;
 
@@ -620,6 +621,113 @@ exports.acceptInvoiceAndPay = catchAsyncErrors(async (req, res, next) => {
     invoice,
   });
 });
+
+exports.acceptInvoiceAndPay = catchAsyncErrors(async (req, res, next) => {
+  const { id } = req.params;
+  const { payment, wantToPay } = req.body;
+
+  if (!["UPI", "COD"].includes(payment)) {
+    return next(new ErrorHandler("Invalid payment method", 400));
+  }
+
+  const invoice = await Invoice.findById(id).populate("customer");
+  if (!invoice) return next(new ErrorHandler("Invoice not found", 404));
+  if (invoice.status !== "Accepted") {
+    return next(new ErrorHandler("Invoice must be accepted before payment", 400));
+  }
+
+  invoice.payment = payment;
+
+  const totalAmount = invoice.price;
+  const amountPaid = invoice.amountPaid || 0;
+  const amountDue = totalAmount - amountPaid;
+
+  // ✅ CASE 1: Already Paid
+  if (amountDue <= 0 && invoice.paymentStatus === "Paid") {
+    invoice.status = "Delivered";
+    await invoice.save();
+    return res.status(200).json({
+      success: true,
+      message: "Invoice already paid, marked as delivered",
+      invoice
+    });
+  }
+
+  // ✅ CASE 2: Customer Does NOT Want to Pay
+  if (wantToPay === false) {
+    // Do NOT change status here
+    await invoice.save();
+    return res.status(200).json({
+      success: true,
+      message: "Customer declined to pay now. Invoice remains accepted.",
+      invoice
+    });
+  }
+
+  // ✅ CASE 3: UPI Payment — generate link and wait for callback to mark as delivered
+  if (payment === "UPI") {
+    const paymentLink = await razorpay.paymentLink.create({
+      amount: Math.round(amountDue * 100),
+      currency: "INR",
+      accept_partial: false,
+      description: `Invoice #${invoice.invoiceId}`,
+      customer: {
+        name: invoice.customerName,
+        contact: invoice.customer.phoneNumber?.toString(),
+        email: invoice.customer.email || "",
+      },
+      notify: {
+        sms: true,
+        email: true,
+      },
+      notes: {
+        "Invoice ID": invoice.invoiceId,
+      },
+      callback_url: `http://localhost:5000/api/v1/verify-payment`,
+      callback_method: "get",
+    });
+
+    invoice.paymentLink = paymentLink.short_url;
+    invoice.paymentLinkId = paymentLink.id;
+    invoice.amountDue = amountDue;
+    invoice.paymentStatus = "Partial";
+    // Status remains "Accepted" until payment is verified
+    await invoice.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment link generated for remaining amount",
+      paymentUrl: paymentLink.short_url,
+      amountDue,
+      invoiceId: invoice.invoiceId,
+    });
+  }
+
+  // ✅ CASE 4: COD — Collect remaining and then update status
+  invoice.amountPaid = totalAmount;
+  invoice.amountDue = 0;
+  invoice.paymentStatus = "Paid";
+  invoice.status = "Delivered";
+  await invoice.save();
+
+  // ✅ Notify delivery boy
+  const customerName = invoice.customer?.name || "Unknown";
+  const deliveryBoyId = invoice.customer?.deliveryBoy;
+
+  if (deliveryBoyId) {
+    await Notification.create({
+      deliveryBoy: deliveryBoyId,
+      message: `COD Payment of ₹${totalAmount} collected from ${customerName} for Invoice ${invoice.invoiceId}.`,
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: "Remaining amount collected via COD. Invoice delivered.",
+    invoice,
+  });
+});
+
 
 
 
