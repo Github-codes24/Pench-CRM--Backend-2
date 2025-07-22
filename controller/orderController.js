@@ -683,7 +683,7 @@ exports.acceptInvoiceAndPay = catchAsyncErrors(async (req, res, next) => {
       notes: {
         "Invoice ID": invoice.invoiceId,
       },
-      callback_url: `http://localhost:3000/paymentverify`,
+      callback_url: `https://pench-delivery-boy.netlify.app/paymentverify`,
       callback_method: "get",
     });
 
@@ -728,9 +728,6 @@ exports.acceptInvoiceAndPay = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-
-
-
 exports.getAdminNotifications = catchAsyncErrors(async (req, res, next) => {
   const notifications = await Notification.find({ admin: null }).sort({ createdAt: -1 });
 
@@ -740,7 +737,6 @@ exports.getAdminNotifications = catchAsyncErrors(async (req, res, next) => {
     notifications
   });
 });
-
 
 exports.verifyInvoicePayment = catchAsyncErrors(async (req, res, next) => {
   const {
