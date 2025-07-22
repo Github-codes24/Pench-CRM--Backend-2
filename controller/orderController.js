@@ -683,7 +683,7 @@ exports.acceptInvoiceAndPay = catchAsyncErrors(async (req, res, next) => {
       notes: {
         "Invoice ID": invoice.invoiceId,
       },
-      callback_url: `http://localhost:5000/api/v1/verify-payment`,
+      callback_url: `http://localhost:3000/paymentverify`,
       callback_method: "get",
     });
 
