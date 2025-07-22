@@ -289,3 +289,30 @@ exports.getUnreadNotifications = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
+
+
+exports.getDeliveryBoyLocation = async (req, res) => {
+  try {
+    const { deliveryBoyId } = req.body;
+
+    if (!deliveryBoyId) {
+      return res.status(400).json({ success: false, message: "Delivery boy ID is required in the request body" });
+    }
+
+    const deliveryBoy = await DeliveryBoy.findById(deliveryBoyId).select("area name email");
+
+    if (!deliveryBoy) {
+      return res.status(404).json({ success: false, message: "Delivery boy not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      area: deliveryBoy.area,
+      name: deliveryBoy.name,
+      email: deliveryBoy.email,
+    });
+  } catch (error) {
+    console.error("Error fetching location:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};

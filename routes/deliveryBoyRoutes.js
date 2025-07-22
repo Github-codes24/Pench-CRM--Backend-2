@@ -12,6 +12,7 @@ const {
   verifyOtpAndResetDeliveryBoyPassword,
   getDeliveryBoyNotifications,
   getUnreadNotifications,
+  getDeliveryBoyLocation,
   markNotificationAsRead
 } = require("../controller/deliveryBoyController");
 
@@ -28,5 +29,6 @@ router.delete("/deletedeliveryboy/:id", isAuthenticatedUser, deleteDeliveryBoy);
 router.get("/deliveryboy/notifications", isAuthenticatedDeliveryBoy, getDeliveryBoyNotifications);
 router.get("/deliveryboy/notifications/unread", isAuthenticatedDeliveryBoy, getUnreadNotifications);
 router.put("/deliveryboy/notifications/read/:notificationId", isAuthenticatedDeliveryBoy, markNotificationAsRead);
+router.get("/deliveryboy/location", getDeliveryBoyLocation); // Changed from GET to POST
 
 module.exports = router;

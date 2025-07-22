@@ -41,26 +41,38 @@ const catchAsyncErrors = require("../middlewares/catchAsyncErrors")
 
 // controllers/invoiceController.js
 exports.getPaymentSummary = catchAsyncErrors(async (req, res, next) => {
-  const invoices = await Invoice.find()
-    .select("createdAt paymentStatus productType customer")
+  const { paymentMethod } = req.query;
+
+  // Fetch all invoices
+  let invoices = await Invoice.find()
+    .select("createdAt payment paymentStatus productType customer")
     .populate({
       path: "customer",
       select: "name"
     })
     .sort({ createdAt: -1 });
 
+  // Filter by payment method if specified (e.g., UPI or COD)
+  if (paymentMethod) {
+    invoices = invoices.filter(inv => inv.payment === paymentMethod);
+  }
+
+  // Payment status counts
   const receivedCount = invoices.filter(inv => inv.paymentStatus === "Paid").length;
   const pendingCount = invoices.filter(inv => inv.paymentStatus === "Unpaid").length;
-  const partialCount = invoices.filter(inv => inv.paymentStatus === "Paid" || "Unpaid").length; // optional if "Partial" used
+  const partialCount = invoices.filter(inv => inv.paymentStatus === "Partial").length;
 
+  // Prepare payment list
   const paymentList = invoices.map(inv => ({
     _id: inv._id,
     date: inv.createdAt,
-    productType: inv.productType || "N/A", // pulled directly from invoice
+    payment: inv.payment,
+    productType: inv.productType || "N/A",
     customerName: inv.customer?.name || "N/A",
     paymentStatus: inv.paymentStatus
   }));
 
+  // Send response
   res.status(200).json({
     success: true,
     counts: {
