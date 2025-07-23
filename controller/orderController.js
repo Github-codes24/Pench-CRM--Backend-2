@@ -704,7 +704,7 @@ exports.acceptInvoiceAndPay = catchAsyncErrors(async (req, res, next) => {
       notes: {
         "Invoice ID": invoice.invoiceId,
       },
-      callback_url: `http://localhost:3000/paymentverify`,
+      callback_url: `https://pench-delivery-boy.netlify.app/paymentverify`,
       callback_method: "get",
     });
 
