@@ -229,6 +229,27 @@ exports.getMyUnpaidOrders = catchAsyncErrors(async (req, res, next) => {
     invoices: pendingInvoices,
   });
 });
+
+exports.getOrderDetails = catchAsyncErrors(async (req, res, next) => {
+  const { id } = req.params;
+
+  // Step 1: Find the invoice by ID
+  const invoice = await Invoice.findById(id)
+    .populate("customer", "name phoneNumber address")
+    .populate("productId", "productType description price image");
+
+  // Step 2: Check if invoice exists
+  if (!invoice) {
+    return next(new ErrorHandler("Order not found", 404));
+  }
+
+  // Step 3: Return the detailed invoice
+  res.status(200).json({
+    success: true,
+    invoice,
+  });
+});
+
 exports.getMyAcceptedOrders = catchAsyncErrors(async (req, res, next) => {
   const deliveryBoyId = req.deliveryBoy?._id || req.deliveryBoy;
 
