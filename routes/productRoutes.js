@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const {createProduct , getAllProducts , getProductById , updateProduct ,assignProductToDeliveryBoy,getSellerProducts,getProductDashboardStats, deleteProduct,getTopSellingProducts,addProductQuantity,removeProductQuantity,getProductsBySellerId} = require("../controller/productController"); // 
+const {createProduct , getAllProducts ,getLowStockProducts, getProductById , updateProduct ,assignProductToDeliveryBoy,getSellerProducts,getProductDashboardStats, deleteProduct,getTopSellingProducts,addProductQuantity,removeProductQuantity,getProductsBySellerId} = require("../controller/productController"); // 
 const upload = require("../utils/multer"); // Handles file uploads
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/auth"); // Optional if you use auth
 
@@ -40,5 +40,10 @@ router.delete(
 router.route("/getsellerproducts").get(isAuthenticatedUser, getSellerProducts)
 router.get("/product-stats", getProductDashboardStats);
 router.post("/assign-product", assignProductToDeliveryBoy);
+
+//low stock aleart
+
+
+router.get("/low-stock/products", getLowStockProducts);
 
 module.exports = router;

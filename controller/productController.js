@@ -277,3 +277,21 @@ exports.assignProductToDeliveryBoy = catchAsyncErrors(async (req, res, next) => 
     deliveryBoy
   });
 });
+
+exports.getLowStockProducts = async (req, res) => {
+  try {
+    const products = await Product.find().sort({ stock: 1 }); // Sort ascending (low stock first)
+
+    return res.status(200).json({
+      success: true,
+      message: "Products fetched successfully, sorted by low stock",
+      data: products,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch products",
+      error: error.message,
+    });
+  }
+};
