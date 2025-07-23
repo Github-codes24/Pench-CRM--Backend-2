@@ -236,7 +236,7 @@ exports.deleteCustomer = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Customer not found", 404));
   }
 
-  await customer.remove();
+  await customer.deleteOne();
 
   res.status(200).json({
     success: true,
