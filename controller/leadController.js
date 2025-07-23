@@ -64,7 +64,6 @@ exports.addFollowUp = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Lead not found", 404));
   }
 
-  // Auto-generate current date
   const currentDate = new Date();
 
   lead.followUps.push({
@@ -72,7 +71,7 @@ exports.addFollowUp = catchAsyncErrors(async (req, res, next) => {
     description,
   });
 
-  await lead.save();
+  await lead.save({ validateModifiedOnly: true });
 
   res.status(200).json({
     success: true,
@@ -80,6 +79,7 @@ exports.addFollowUp = catchAsyncErrors(async (req, res, next) => {
     followUps: lead.followUps,
   });
 });
+
 
 
 // Convert Lead to Customer (Auto)

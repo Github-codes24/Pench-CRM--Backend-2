@@ -24,7 +24,8 @@ const leadSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["Cold", "Moderate", "Hot"],
-      required: true,
+      default: 'Cold', // set a valid default
+      required: false,
     },
       followUps: [
       {
