@@ -32,7 +32,7 @@ router.put(
 
 // Delete product by ID
 router.delete(
-  "/products/",
+  "/products/:id",
   isAuthenticatedUser,
   deleteProduct
 );
