@@ -43,6 +43,43 @@ exports.createDeliveryBoy = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
+exports.updateshiftBoyDetails = catchAsyncErrors(async (req, res, next) => {
+  const { deliveryBoyId, area, productType, customerIds = [] } = req.body;
+
+  if (!deliveryBoyId || !area || !productType || productType.length === 0) {
+    return next(new ErrorHandler("Delivery boy ID, area, and productType are required", 400));
+  }
+
+  const deliveryBoy = await DeliveryBoy.findById(deliveryBoyId);
+  if (!deliveryBoy) {
+    return next(new ErrorHandler("Delivery boy not found", 404));
+  }
+
+  // Update area and product type
+  deliveryBoy.area = area;
+  deliveryBoy.productType = productType;
+
+  // Update customer assignments if provided
+  if (customerIds.length > 0) {
+    deliveryBoy.assignedCustomers = customerIds;
+
+    // Update each customer with this delivery boy ID
+    await Customer.updateMany(
+      { _id: { $in: customerIds } },
+      { deliveryBoy: deliveryBoy._id }
+    );
+  }
+
+  await deliveryBoy.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Delivery boy updated and customers reassigned successfully",
+    deliveryBoy,
+  });
+});
+
+
 // 🔐 Login Delivery Boy
 exports.loginDeliveryBoy = catchAsyncErrors(async (req, res, next) => {
   const { email, password } = req.body;
@@ -299,7 +336,7 @@ exports.getDeliveryBoyLocation = async (req, res) => {
       return res.status(400).json({ success: false, message: "Delivery boy ID is required in the request body" });
     }
 
-    const deliveryBoy = await DeliveryBoy.findById(deliveryBoyId).select("area name email");
+    const deliveryBoy = await DeliveryBoy.findById(deliveryBoyId).select("area name email phoneNumber");
 
     if (!deliveryBoy) {
       return res.status(404).json({ success: false, message: "Delivery boy not found" });
@@ -310,6 +347,7 @@ exports.getDeliveryBoyLocation = async (req, res) => {
       area: deliveryBoy.area,
       name: deliveryBoy.name,
       email: deliveryBoy.email,
+      phoneNumber:deliveryBoy.phoneNumber
     });
   } catch (error) {
     console.error("Error fetching location:", error);

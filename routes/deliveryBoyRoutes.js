@@ -13,12 +13,15 @@ const {
   getDeliveryBoyNotifications,
   getUnreadNotifications,
   getDeliveryBoyLocation,
-  markNotificationAsRead
+  markNotificationAsRead,
+  updateshiftBoyDetails
 } = require("../controller/deliveryBoyController");
 
 const { isAuthenticatedUser, isAuthenticatedDeliveryBoy } = require("../middlewares/auth");
 
 router.post("/adddeliveryboy", isAuthenticatedUser, createDeliveryBoy);
+
+router.put("/delivery-boy/shift", updateshiftBoyDetails);
 router.post("/deliveryboy/login", loginDeliveryBoy);
 router.get("/getalldeliveryboys", getAllDeliveryBoys);
 router.get("/getdeliveryboy/:id", getDeliveryBoyById);
