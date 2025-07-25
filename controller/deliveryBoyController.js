@@ -328,18 +328,52 @@ exports.getUnreadNotifications = catchAsyncErrors(async (req, res, next) => {
 
 
 
+// exports.getDeliveryBoyLocation = async (req, res) => {
+//   try {
+//     const { deliveryBoyId } = req.body;
+
+//     if (!deliveryBoyId) {
+//       return res.status(400).json({ success: false, message: "Delivery boy ID is required in the request body" });
+//     }
+
+//     const deliveryBoy = await DeliveryBoy.findById(deliveryBoyId).select("area name email phoneNumber");
+
+//     if (!deliveryBoy) {
+//       return res.status(404).json({ success: false, message: "Delivery boy not found" });
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       area: deliveryBoy.area,
+//       name: deliveryBoy.name,
+//       email: deliveryBoy.email,
+//       phoneNumber:deliveryBoy.phoneNumber
+//     });
+//   } catch (error) {
+//     console.error("Error fetching location:", error);
+//     res.status(500).json({ success: false, message: "Server error" });
+//   }
+// };
+
+
 exports.getDeliveryBoyLocation = async (req, res) => {
   try {
-    const { deliveryBoyId } = req.body;
+    const { deliveryBoyId } = req.params; // ✅ Use params instead of body
 
     if (!deliveryBoyId) {
-      return res.status(400).json({ success: false, message: "Delivery boy ID is required in the request body" });
+      return res.status(400).json({
+        success: false,
+        message: "Delivery boy ID is required in the request parameters"
+      });
     }
 
     const deliveryBoy = await DeliveryBoy.findById(deliveryBoyId).select("area name email phoneNumber");
 
     if (!deliveryBoy) {
-      return res.status(404).json({ success: false, message: "Delivery boy not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Delivery boy not found"
+      });
     }
 
     res.status(200).json({
@@ -347,7 +381,7 @@ exports.getDeliveryBoyLocation = async (req, res) => {
       area: deliveryBoy.area,
       name: deliveryBoy.name,
       email: deliveryBoy.email,
-      phoneNumber:deliveryBoy.phoneNumber
+      phoneNumber: deliveryBoy.phoneNumber
     });
   } catch (error) {
     console.error("Error fetching location:", error);
