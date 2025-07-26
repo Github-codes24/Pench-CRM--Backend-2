@@ -398,8 +398,6 @@ exports.updateCustomer = catchAsyncErrors(async (req, res, next) => {
 
 
 
-
-
 // ❌ Delete customer
 exports.deleteCustomer = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;

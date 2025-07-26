@@ -2,14 +2,61 @@ const Invoice = require("../models/invoiceModel");
 const Product = require("../models/productModel");
 const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 
+// exports.getDashboardStats = catchAsyncErrors(async (req, res, next) => {
+//   const allInvoices = await Invoice.find();
+
+//   // Total Sales (for Paid invoices)
+//   const paidInvoices = allInvoices.filter(inv => inv.paymentStatus === "Paid");
+//   const totalSales = paidInvoices.reduce((sum, inv) => sum + inv.price, 0);
+
+//   // Subscription Counts
+//   const subscriptionCounts = {
+//     Daily: 0,
+//     Weekly: 0,
+//     Monthly: 0,
+//     totalSubscriptions: 0
+//   };
+
+//   allInvoices.forEach(inv => {
+//     if (inv.subscriptionPlan) {
+//       if (subscriptionCounts[inv.subscriptionPlan] !== undefined) {
+//         subscriptionCounts[inv.subscriptionPlan]++;
+//       }
+//       subscriptionCounts.totalSubscriptions++;
+//     }
+//   });
+
+//   // Low stock alert
+//   const lowStockThreshold = 10;
+//   const lowStockProducts = await Product.find({ stock: { $lte: lowStockThreshold } })
+//     .select("productType stock");
+
+//   // Pending Payments
+//   const unpaidInvoices = allInvoices.filter(inv => inv.paymentStatus === "Unpaid");
+//   const totalPendingAmount = unpaidInvoices.reduce((sum, inv) => sum + inv.price, 0);
+//   const totalPendingCount = unpaidInvoices.length;
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Dashboard stats fetched successfully",
+//     stats: {
+//       totalSales,
+//       subscriptionCounts,
+//       lowStockAlerts: lowStockProducts,
+//       pendingPayments: {
+//         totalPendingCount,
+//         totalPendingAmount
+//       }
+//     }
+//   });
+// });
+
 exports.getDashboardStats = catchAsyncErrors(async (req, res, next) => {
   const allInvoices = await Invoice.find();
 
-  // Total Sales (for Paid invoices)
   const paidInvoices = allInvoices.filter(inv => inv.paymentStatus === "Paid");
-  const totalSales = paidInvoices.reduce((sum, inv) => sum + inv.price, 0);
+  const totalSales = paidInvoices.reduce((sum, inv) => sum + (inv.price || 0), 0);
 
-  // Subscription Counts
   const subscriptionCounts = {
     Daily: 0,
     Weekly: 0,
@@ -18,22 +65,22 @@ exports.getDashboardStats = catchAsyncErrors(async (req, res, next) => {
   };
 
   allInvoices.forEach(inv => {
-    if (inv.subscriptionPlan) {
-      if (subscriptionCounts[inv.subscriptionPlan] !== undefined) {
-        subscriptionCounts[inv.subscriptionPlan]++;
-      }
+    const plan = inv.subscriptionPlan;
+    if (plan && subscriptionCounts[plan] !== undefined) {
+      subscriptionCounts[plan]++;
       subscriptionCounts.totalSubscriptions++;
     }
   });
 
-  // Low stock alert
-  const lowStockThreshold = 10;
-  const lowStockProducts = await Product.find({ stock: { $lte: lowStockThreshold } })
-    .select("productType stock");
+  // 🛠 Fix: Explicitly filter for stock that exists and is a number <= 10
+  const lowStockProducts = await Product.find({
+    stock: { $exists: true, $ne: null, $lte: 10 }
+  })
+    .select("productType stock size")
+    .sort({ stock: 1 });
 
-  // Pending Payments
   const unpaidInvoices = allInvoices.filter(inv => inv.paymentStatus === "Unpaid");
-  const totalPendingAmount = unpaidInvoices.reduce((sum, inv) => sum + inv.price, 0);
+  const totalPendingAmount = unpaidInvoices.reduce((sum, inv) => sum + (inv.price || 0), 0);
   const totalPendingCount = unpaidInvoices.length;
 
   res.status(200).json({
@@ -42,10 +89,13 @@ exports.getDashboardStats = catchAsyncErrors(async (req, res, next) => {
     stats: {
       totalSales,
       subscriptionCounts,
-      lowStockAlerts: lowStockProducts,
       pendingPayments: {
         totalPendingCount,
         totalPendingAmount
+      },
+      lowStockAlerts: {
+        count: lowStockProducts.length,
+        products: lowStockProducts
       }
     }
   });

@@ -3,7 +3,7 @@ const router = express.Router();
 const { getDashboardStats,getSalesReport,getWeeklyEarningsByDay,getDeliverySummary,getProductInsightThisWeek,getBottleTracking } = require("../controller/dashboardController");
 const { isAuthenticatedUser } = require("../middlewares/auth");
 
-router.get("/dashboard", isAuthenticatedUser, getDashboardStats);
+router.get("/dashboard/stach", isAuthenticatedUser, getDashboardStats);
 router.get("/sales-report", getSalesReport);
 router.get("/weekly-earnings-per-day", getWeeklyEarningsByDay);
 router.get("/delivery-summary", getDeliverySummary);
