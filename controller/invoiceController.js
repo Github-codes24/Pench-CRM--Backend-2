@@ -499,14 +499,26 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
 // });
 
 exports.getAllInvoices = catchAsyncErrors(async (req, res, next) => {
-  const invoices = await Invoice.find({}, {
+  const { from, to } = req.query;
+
+  const filter = {};
+
+  // Apply date range filter if both are provided
+  if (from && to) {
+    filter.createdAt = {
+      $gte: new Date(from + "T00:00:00.000Z"),
+      $lte: new Date(to + "T23:59:59.999Z")
+    };
+  }
+
+  const invoices = await Invoice.find(filter, {
     customerName: 1,
     invoiceId: 1,
     subscriptionPlan: 1,
     price: 1,
     paymentStatus: 1,
-    _id: 1, // don't return _id
-  }).sort({ createdAt: -1 }); // optional: sort by latest first
+    _id: 1,
+  }).sort({ createdAt: -1 });
 
   res.status(200).json({
     success: true,
@@ -514,6 +526,7 @@ exports.getAllInvoices = catchAsyncErrors(async (req, res, next) => {
     invoices
   });
 });
+
 
 const { generateInvoiceMessage } = require("../utils/whatsappFormatter");
 

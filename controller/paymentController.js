@@ -41,10 +41,20 @@ const catchAsyncErrors = require("../middlewares/catchAsyncErrors")
 
 // controllers/invoiceController.js
 exports.getPaymentSummary = catchAsyncErrors(async (req, res, next) => {
-  const { paymentMethod } = req.query;
+  const { paymentMethod, from, to } = req.query;
 
-  // Fetch all invoices
-  let invoices = await Invoice.find()
+  const filter = {};
+
+  // Apply date range if provided
+  if (from && to) {
+    filter.createdAt = {
+      $gte: new Date(from + "T00:00:00.000Z"),
+      $lte: new Date(to + "T23:59:59.999Z")
+    };
+  }
+
+  // Fetch invoices with optional filters
+  let invoices = await Invoice.find(filter)
     .select("createdAt payment paymentStatus productType customer")
     .populate({
       path: "customer",
@@ -52,7 +62,7 @@ exports.getPaymentSummary = catchAsyncErrors(async (req, res, next) => {
     })
     .sort({ createdAt: -1 });
 
-  // Filter by payment method if specified (e.g., UPI or COD)
+  // Apply payment method filter if provided
   if (paymentMethod) {
     invoices = invoices.filter(inv => inv.payment === paymentMethod);
   }
@@ -169,7 +179,7 @@ exports.getPaymentDetailsById = catchAsyncErrors(async (req, res, next) => {
     deliveryBoyName: invoice.customer?.deliveryBoy?.name || "N/A",
     deliveryBoyPhone: invoice.customer?.deliveryBoy?.phoneNumber || "N/A",
     price: invoice.price,
-    paymentMethod: invoice.paymentMode || "N/A",
+    paymentMethod: invoice.payment || "N/A",
     razorpayPaymentId : invoice.razorpayPaymentId || "N/A",
     paymentStatus: invoice.paymentStatus,
     invoiceDate: invoice.createdAt,

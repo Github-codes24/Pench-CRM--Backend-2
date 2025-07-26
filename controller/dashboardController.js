@@ -61,12 +61,14 @@ exports.getSalesReport = catchAsyncErrors(async (req, res, next) => {
     .sort({ createdAt: -1 });
 
   const salesList = sales.map((inv) => ({
+    _id:inv._id,
     customerName: inv.customer?.name || "N/A",
     date: inv.createdAt,
     productType: inv.productType,
     productQuantity: inv.productQuantity,
     totalAmount: inv.price,
-    payment: inv.payment || "N/A",
+    // payment: inv.payment || "N/A",
+    payment:inv.paymentMode || "N/A",
     paymentStatus: inv.paymentStatus
   }));
 
@@ -259,14 +261,84 @@ exports.getProductInsightThisWeek = catchAsyncErrors(async (req, res, next) => {
 });
 
 
+// exports.getBottleTracking = catchAsyncErrors(async (req, res, next) => {
+//   const { startDate, endDate } = req.query;
+
+//   const start = startDate ? new Date(startDate) : new Date("2000-01-01");
+//   const end = endDate ? new Date(endDate) : new Date();
+//   end.setHours(23, 59, 59, 999);
+
+//   // Fetch all invoices within the date range (no filter on status or bottleIssued)
+//   const invoices = await Invoice.find({
+//     invoiceDate: { $gte: start, $lte: end },
+//   });
+
+//   let totalInvoices = invoices.length;
+//   let totalBottles = 0;
+//   let totalReturnedBottles = 0;
+
+//   const byQuantity = {
+//     "500ml": { issued: 0, returned: 0 },
+//     "1L": { issued: 0, returned: 0 },
+//     "2L": { issued: 0, returned: 0 },
+//   };
+
+//   const tracking = [];
+
+//   invoices.forEach(inv => {
+//     const qtyRaw = inv.productQuantity?.toString().trim().toLowerCase();
+//     let size = "";
+
+//     if (["0.5", "500ml", "1/2"].includes(qtyRaw)) size = "500ml";
+//     else if (["1", "1l", "1ltr"].includes(qtyRaw)) size = "1L";
+//     else if (["2", "2l", "2ltr"].includes(qtyRaw)) size = "2L";
+//     else size = "Unknown";
+
+//     // Count total issued bottles (if productQuantity is valid)
+//     if (size !== "Unknown") {
+//       byQuantity[size].issued += 1;
+//       totalBottles += 1;
+//     }
+
+//     const returned = inv.bottleReturnedYesNo === true;
+
+//     if (returned && size !== "Unknown") {
+//       byQuantity[size].returned += 1;
+//       totalReturnedBottles += 1;
+//     }
+
+//     tracking.push({
+//       customerName: inv.customerName || "N/A",
+//       productType: inv.productType || "N/A",
+//       productQuantity: size,
+//       invoiceDate: inv.invoiceDate?.toISOString().split("T")[0] || "N/A",
+//       bottleReturn: returned ? "Yes" : "No",
+//       status: inv.status || "N/A"
+//     });
+//   });
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Bottle tracking and summary fetched successfully",
+//     summary: {
+//       totalInvoices,
+//       totalBottles,
+//       totalReturnedBottles,
+//       byQuantity,
+//     },
+//     tracking,
+//   });
+// });
+
+
+
 exports.getBottleTracking = catchAsyncErrors(async (req, res, next) => {
-  const { startDate, endDate } = req.query;
+  const { from, to } = req.query;
 
-  const start = startDate ? new Date(startDate) : new Date("2000-01-01");
-  const end = endDate ? new Date(endDate) : new Date();
-  end.setHours(23, 59, 59, 999);
+  const start = from ? new Date(from) : new Date("2000-01-01");
+  const end = to ? new Date(to) : new Date();
+  end.setHours(23, 59, 59, 999); // include entire end day
 
-  // Fetch all invoices within the date range (no filter on status or bottleIssued)
   const invoices = await Invoice.find({
     invoiceDate: { $gte: start, $lte: end },
   });
@@ -292,7 +364,6 @@ exports.getBottleTracking = catchAsyncErrors(async (req, res, next) => {
     else if (["2", "2l", "2ltr"].includes(qtyRaw)) size = "2L";
     else size = "Unknown";
 
-    // Count total issued bottles (if productQuantity is valid)
     if (size !== "Unknown") {
       byQuantity[size].issued += 1;
       totalBottles += 1;
@@ -327,4 +398,3 @@ exports.getBottleTracking = catchAsyncErrors(async (req, res, next) => {
     tracking,
   });
 });
-
