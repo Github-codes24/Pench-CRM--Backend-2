@@ -40,10 +40,10 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
 
 // Update Product
 exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
-    const { productId } = req.params;
+    const { id } = req.params;
     const { name, description,productType, quantity, size, price, stock } = req.body;
 
-    const product = await Product.findById(productId);
+    const product = await Product.findById(id);
     if (!product) {
         return next(new ErrorHandler("Product not found", 404));
     }
