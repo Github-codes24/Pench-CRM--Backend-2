@@ -795,6 +795,7 @@ exports.verifyInvoicePayment = catchAsyncErrors(async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "Payment verified and invoice marked Delivered",
+      paymentStatus: invoice.paymentStatus,
       invoiceId: invoice.invoiceId,
       paymentId: razorpay_payment_id,
     });
