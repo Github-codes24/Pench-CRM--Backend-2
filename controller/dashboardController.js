@@ -221,11 +221,21 @@ exports.getDeliverySummary = catchAsyncErrors(async (req, res, next) => {
     success: true,
     summary: {
       totalDeliveredBottles,
-      totalReturnedBottles,
-      byQuantity: summaryByQty
+      totalReturnedBottles: parseFloat(totalReturnedBottles.toFixed(2)),
+      byQuantity: {
+        "1L": {
+          delivered: summaryByQty["1L"].delivered,
+          returned: parseFloat(summaryByQty["1L"].returned.toFixed(2))
+        },
+        "0.5L": {
+          delivered: summaryByQty["0.5L"].delivered,
+          returned: parseFloat(summaryByQty["0.5L"].returned.toFixed(2))
+        }
+      }
     }
   });
 });
+
 
 function getStartAndEndOfWeek() {
   const now = new Date();
