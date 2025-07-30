@@ -128,13 +128,24 @@ exports.removeProductQuantity = catchAsyncErrors(async (req, res, next) => {
 });
 
 exports.getAllProducts = catchAsyncErrors(async (req, res, next) => {
-    const products = await Product.find(); // or add filters/sorting
-    res.status(200).json({
-        success: true,
-        count: products.length,
-        products,
-    });
+  const { productType } = req.query; // ✅ Get productType from query params
+
+  // Build filter object
+  const filter = {};
+  if (productType) {
+    filter.productType = productType; // match exact productType
+  }
+
+  // Fetch products with optional filter
+  const products = await Product.find(filter);
+
+  res.status(200).json({
+    success: true,
+    count: products.length,
+    products,
+  });
 });
+
 
 exports.getProductById = catchAsyncErrors(async (req, res, next) => {
     const { id } = req.params;

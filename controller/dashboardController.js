@@ -148,47 +148,158 @@ const getCurrentWeekDates = () => {
   return daysOfWeek;
 };
 
+// exports.getWeeklyEarningsByDay = catchAsyncErrors(async (req, res, next) => {
+//   const weekDays = getCurrentWeekDates();
+
+//   const earningsByDay = {
+//     Monday: 0,
+//     Tuesday: 0,
+//     Wednesday: 0,
+//     Thursday: 0,
+//     Friday: 0,
+//     Saturday: 0,
+//     Sunday: 0
+//   };
+
+//   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+//   // Fetch all invoices for the current week
+//   const startDate = weekDays[0];
+//   const endDate = new Date(weekDays[6]);
+//   endDate.setHours(23, 59, 59, 999);
+
+//   const invoices = await Invoice.find({
+//     createdAt: { $gte: startDate, $lte: endDate },
+//     paymentStatus: "Paid"
+//   });
+
+//   for (const inv of invoices) {
+//     const invDate = new Date(inv.createdAt);
+//     const dayName = dayNames[invDate.getDay()];
+//     if (earningsByDay[dayName] !== undefined) {
+//       earningsByDay[dayName] += inv.price;
+//     }
+//   }
+
+//   const totalEarnings = Object.values(earningsByDay).reduce((sum, val) => sum + val, 0);
+
+//   res.status(200).json({
+//     success: true,
+//     week: earningsByDay,
+//     totalEarnings
+//   });
+// });
+
 exports.getWeeklyEarningsByDay = catchAsyncErrors(async (req, res, next) => {
-  const weekDays = getCurrentWeekDates();
+  const { type = "weekly" } = req.query;
 
-  const earningsByDay = {
-    Monday: 0,
-    Tuesday: 0,
-    Wednesday: 0,
-    Thursday: 0,
-    Friday: 0,
-    Saturday: 0,
-    Sunday: 0
-  };
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  let startDate, endDate;
+  let earningsData = {};
+  let label = "";
+  const invoicesFilter = { paymentStatus: "Paid" };
 
-  // Fetch all invoices for the current week
-  const startDate = weekDays[0];
-  const endDate = new Date(weekDays[6]);
-  endDate.setHours(23, 59, 59, 999);
+  if (type === "weekly") {
+    const dayIndex = today.getDay();
+    const mondayOffset = (dayIndex + 6) % 7;
+    startDate = new Date(today);
+    startDate.setDate(today.getDate() - mondayOffset);
+    endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
 
-  const invoices = await Invoice.find({
-    createdAt: { $gte: startDate, $lte: endDate },
-    paymentStatus: "Paid"
-  });
+    endDate.setHours(23, 59, 59, 999);
+    invoicesFilter.createdAt = { $gte: startDate, $lte: endDate };
 
-  for (const inv of invoices) {
-    const invDate = new Date(inv.createdAt);
-    const dayName = dayNames[invDate.getDay()];
-    if (earningsByDay[dayName] !== undefined) {
-      earningsByDay[dayName] += inv.price;
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const earningsByDay = {
+      Monday: 0, Tuesday: 0, Wednesday: 0,
+      Thursday: 0, Friday: 0, Saturday: 0, Sunday: 0
+    };
+
+    const invoices = await Invoice.find(invoicesFilter);
+    for (const inv of invoices) {
+      const day = dayNames[new Date(inv.createdAt).getDay()];
+      if (earningsByDay[day] !== undefined) {
+        earningsByDay[day] += inv.price;
+      }
     }
+
+    earningsData = earningsByDay;
+    label = "Daily";
+
+  } else if (type === "monthly") {
+    startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    endDate.setHours(23, 59, 59, 999);
+    invoicesFilter.createdAt = { $gte: startDate, $lte: endDate };
+
+    const invoices = await Invoice.find(invoicesFilter);
+
+    const earningsByWeek = {
+      Week1: 0,
+      Week2: 0,
+      Week3: 0,
+      Week4: 0,
+      Week5: 0
+    };
+
+    for (const inv of invoices) {
+      const date = new Date(inv.createdAt);
+      const day = date.getDate();
+      let week = Math.ceil(day / 7);
+      if (week > 5) week = 5;
+      earningsByWeek[`Week${week}`] += inv.price;
+    }
+
+    earningsData = earningsByWeek;
+    label = "Weekly";
+
+  } else if (type === "yearly") {
+    startDate = new Date(today.getFullYear(), 0, 1);
+    endDate = new Date(today.getFullYear(), 11, 31);
+    endDate.setHours(23, 59, 59, 999);
+    invoicesFilter.createdAt = { $gte: startDate, $lte: endDate };
+
+    const invoices = await Invoice.find(invoicesFilter);
+
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+
+    const earningsByMonth = {};
+    monthNames.forEach(month => earningsByMonth[month] = 0);
+
+    for (const inv of invoices) {
+      const monthIndex = new Date(inv.createdAt).getMonth();
+      const month = monthNames[monthIndex];
+      earningsByMonth[month] += inv.price;
+    }
+
+    earningsData = earningsByMonth;
+    label = "Monthly";
+
+  } else {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid type. Use 'weekly', 'monthly', or 'yearly'."
+    });
   }
 
-  const totalEarnings = Object.values(earningsByDay).reduce((sum, val) => sum + val, 0);
+  const totalEarnings = Object.values(earningsData).reduce((sum, val) => sum + val, 0);
 
   res.status(200).json({
     success: true,
-    week: earningsByDay,
+    type,
+    label,
+    range: { from: startDate, to: endDate },
+    data: earningsData,
     totalEarnings
   });
 });
+
 
 exports.getDeliverySummary = catchAsyncErrors(async (req, res, next) => {
   const invoices = await Invoice.find({ status: { $in: ["Delivered", "Accepted", "Pending"] } });
@@ -255,14 +366,104 @@ function getStartAndEndOfWeek() {
 // Utility to get current week's Monday to Sunday
 
 
-exports.getProductInsightThisWeek = catchAsyncErrors(async (req, res, next) => {
-  const { monday, sunday } = getStartAndEndOfWeek();
+// exports.getProductInsightThisWeek = catchAsyncErrors(async (req, res, next) => {
+//   const { monday, sunday } = getStartAndEndOfWeek();
 
-  // Fetch all delivered invoices in the week
-  const invoices = await Invoice.find({
+//   // Fetch all delivered invoices in the week
+//   const invoices = await Invoice.find({
+//     status: "Delivered",
+//     createdAt: { $gte: monday, $lte: sunday }
+//   });
+
+//   const productMap = {};
+//   const todayMap = {};
+//   let totalDelivered = 0;
+
+//   // Count deliveries
+//   invoices.forEach(inv => {
+//     const type = inv.productType;
+
+//     productMap[type] = (productMap[type] || 0) + 1;
+
+//     // Today tracking
+//     const created = new Date(inv.createdAt);
+//     const isToday = created.toDateString() === new Date().toDateString();
+//     if (isToday) {
+//       todayMap[type] = (todayMap[type] || 0) + 1;
+//     }
+
+//     totalDelivered += 1;
+//   });
+
+//   // Get all product types from Product collection
+//   const allProducts = await Product.find({}, "productType");
+//   const allProductTypes = [...new Set(allProducts.map(p => p.productType))];
+
+//   // Fill 0 for products not sold this week
+//   allProductTypes.forEach(type => {
+//     if (!productMap[type]) productMap[type] = 0;
+//   });
+
+//   const productInsights = Object.entries(productMap)
+//     .map(([type, count]) => ({ productType: type, deliveredCount: count }))
+//     .sort((a, b) => b.deliveredCount - a.deliveredCount);
+
+//   const topSelling = productInsights[0] || {};
+//   const leastSelling = productInsights
+//     .filter(p => p.deliveredCount === 0)[0] || productInsights[productInsights.length - 1] || {};
+
+//   const productOfDay = Object.entries(todayMap)
+//     .sort((a, b) => b[1] - a[1])
+//     .map(([type, count]) => ({ productType: type, deliveredCount: count }))[0] || {};
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Product insights fetched successfully",
+//     week: {
+//       from: monday.toISOString().split("T")[0],
+//       to: sunday.toISOString().split("T")[0]
+//     },
+//     totalDelivered: `${totalDelivered} unit`,
+//     productOfDay: productOfDay.productType || "N/A",
+//     topSelling: topSelling.productType || "N/A",
+//     lowestProductSale: leastSelling.productType || "N/A",
+//     productInsights
+//   });
+// });
+
+exports.getProductInsightThisWeek = catchAsyncErrors(async (req, res, next) => {
+  // ── Query params ───────────────────────────────────────────────
+  const { productType, range = "week" } = req.query;
+  const now = new Date();
+
+  // ── Date range selection: week | day | month ───────────────────
+  let from, to;
+  const rng = String(range).toLowerCase();
+
+  if (rng === "day" || rng === "daily") {
+    // Today 00:00:00.000 → 23:59:59.999
+    from = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    to   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  } else if (rng === "month" || rng === "monthly") {
+    // First day of this month → Last millisecond of this month
+    from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    to   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  } else {
+    // Default: current week (uses existing helper if you have it)
+    const { monday, sunday } = getStartAndEndOfWeek();
+    from = monday;
+    to = sunday;
+  }
+
+  // ── Build invoice filter ────────────────────────────────────────
+  const invFilter = {
     status: "Delivered",
-    createdAt: { $gte: monday, $lte: sunday }
-  });
+    createdAt: { $gte: from, $lte: to }
+  };
+  if (productType) invFilter.productType = productType;
+
+  // Fetch all delivered invoices in the period (+ optional productType)
+  const invoices = await Invoice.find(invFilter);
 
   const productMap = {};
   const todayMap = {};
@@ -271,10 +472,9 @@ exports.getProductInsightThisWeek = catchAsyncErrors(async (req, res, next) => {
   // Count deliveries
   invoices.forEach(inv => {
     const type = inv.productType;
-
     productMap[type] = (productMap[type] || 0) + 1;
 
-    // Today tracking
+    // Track today's product of the day (independent of selected range)
     const created = new Date(inv.createdAt);
     const isToday = created.toDateString() === new Date().toDateString();
     if (isToday) {
@@ -284,11 +484,16 @@ exports.getProductInsightThisWeek = catchAsyncErrors(async (req, res, next) => {
     totalDelivered += 1;
   });
 
-  // Get all product types from Product collection
-  const allProducts = await Product.find({}, "productType");
-  const allProductTypes = [...new Set(allProducts.map(p => p.productType))];
+  // Get all product types (limit to selected productType if provided)
+  let allProductTypes;
+  if (productType) {
+    allProductTypes = [productType];
+  } else {
+    const allProducts = await Product.find({}, "productType");
+    allProductTypes = [...new Set(allProducts.map(p => p.productType))];
+  }
 
-  // Fill 0 for products not sold this week
+  // Fill 0 for products not sold in the selected period
   allProductTypes.forEach(type => {
     if (!productMap[type]) productMap[type] = 0;
   });
@@ -298,19 +503,26 @@ exports.getProductInsightThisWeek = catchAsyncErrors(async (req, res, next) => {
     .sort((a, b) => b.deliveredCount - a.deliveredCount);
 
   const topSelling = productInsights[0] || {};
-  const leastSelling = productInsights
-    .filter(p => p.deliveredCount === 0)[0] || productInsights[productInsights.length - 1] || {};
+  const leastSelling =
+    productInsights.filter(p => p.deliveredCount === 0)[0] ||
+    productInsights[productInsights.length - 1] ||
+    {};
 
-  const productOfDay = Object.entries(todayMap)
-    .sort((a, b) => b[1] - a[1])
-    .map(([type, count]) => ({ productType: type, deliveredCount: count }))[0] || {};
+  const productOfDay =
+    Object.entries(todayMap)
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, count]) => ({ productType: type, deliveredCount: count }))[0] || {};
 
   res.status(200).json({
     success: true,
     message: "Product insights fetched successfully",
-    week: {
-      from: monday.toISOString().split("T")[0],
-      to: sunday.toISOString().split("T")[0]
+    period: rng === "daily" ? "day" : (rng === "monthly" ? "month" : "week"),
+    filters: {
+      productType: productType || "All"
+    },
+    range: {
+      from: from.toISOString().split("T")[0],
+      to: to.toISOString().split("T")[0]
     },
     totalDelivered: `${totalDelivered} unit`,
     productOfDay: productOfDay.productType || "N/A",
@@ -319,6 +531,7 @@ exports.getProductInsightThisWeek = catchAsyncErrors(async (req, res, next) => {
     productInsights
   });
 });
+
 
 
 // exports.getBottleTracking = catchAsyncErrors(async (req, res, next) => {

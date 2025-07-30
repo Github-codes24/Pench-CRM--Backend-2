@@ -10,13 +10,14 @@ const customerSchema = new mongoose.Schema(
             type: String,
             required: [false, "Phone number is required"],
             match: [/^[0-9]{10}$/, "Please enter a valid 10-digit phone number"],
+            unique: true,
         },
         userProfile: {
             type: String,
             default:
                 "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y",
         },
-        gender:{
+        gender: {
             type: String,
             enum: ["Male", "Female", "Other"],
             required: [false, "Gender is required"],
@@ -50,6 +51,10 @@ const customerSchema = new mongoose.Schema(
         quantity: {
             type: String, // e.g., "1L", "500ml"
             required: [false, "Product quantity is required"],
+        },
+        price: {                     // ✅ NEW FIELD
+            type: Number,
+            required: true,
         },
         address: {
             type: String,

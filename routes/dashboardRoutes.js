@@ -7,7 +7,7 @@ router.get("/dashboard", isAuthenticatedUser, getDashboardStats);
 router.get("/sales-report", getSalesReport);
 router.get("/weekly-earnings-per-day", getWeeklyEarningsByDay);
 router.get("/delivery-summary", getDeliverySummary);
-router.get("/product-insight/this-week", getProductInsightThisWeek);
+router.get("/product-insight/", getProductInsightThisWeek);
 
 router.get("/bottle-tracking", getBottleTracking);
 

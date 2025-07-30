@@ -3,6 +3,7 @@ const ErrorHandler = require("../utils/errorhandler");
 const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const SubscriptionPlan = require("../models/subscrptionplanModel");
 const Subscription = require("../models/subscrptionModel");
+const DeliveryBoy = require("../models/deliveryBoyModel")
 // ➕ Add a new customer
 // exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
 //   const {
@@ -56,6 +57,7 @@ exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
     deliveryBoy,
     subscriptionPlan,
     quantity,
+    price,           // ✅ NEW FIELD ADDED
     address,
     frequency, // optional
   } = req.body;
@@ -69,15 +71,22 @@ exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
     !deliveryBoy ||
     !subscriptionPlan ||
     !quantity ||
+    !price ||        // ✅ VALIDATE PRICE
     !address
   ) {
     return next(new ErrorHandler("All fields are required", 400));
   }
 
-  // ✅ 2. Validate quantity
+  // ✅ 2. Validate quantity & price
   const quantityNumber = Number(quantity);
+  const priceNumber = Number(price);
+
   if (isNaN(quantityNumber) || quantityNumber <= 0) {
     return next(new ErrorHandler("Quantity must be a valid number", 400));
+  }
+
+  if (isNaN(priceNumber) || priceNumber <= 0) {
+    return next(new ErrorHandler("Price must be a valid number", 400));
   }
 
   // ✅ 3. Validate subscription plan
@@ -95,6 +104,7 @@ exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
     deliveryBoy,
     subscriptionPlan,
     quantity: quantityNumber,
+    price: priceNumber,   // ✅ SAVE PRICE IN CUSTOMER
     address,
     createdBy: req.user?._id || null, // Optional
   });
@@ -110,14 +120,14 @@ exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
     address: customer.address,
     subscriptionPlan: plan.subscriptionPlan,
     frequency: frequency || "Every Day",
-    price: plan.totalPrice,
+    price: priceNumber,     // ✅ USE PRICE FROM REQUEST
     startDate: new Date(),
     endDate: null, // Optional: can be calculated later
     status: "Active",
     deliveryTime: plan.deliveryTime,
     products: plan.products,
     discount: plan.discount,
-    totalPrice: plan.totalPrice,
+    totalPrice: priceNumber, // ✅ CALCULATE TOTAL PRICE
     isActive: true,
   });
 
@@ -129,6 +139,7 @@ exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
     subscription,
   });
 });
+
 // 📋 Get all customers
 // exports.getAllCustomers = catchAsyncErrors(async (req, res, next) => {
 //   const customers = await Customer.find()
@@ -187,10 +198,13 @@ exports.getAllCustomerss = catchAsyncErrors(async (req, res, next) => {
 });
 
 exports.getAllCustomers = catchAsyncErrors(async (req, res, next) => {
-  // 1. Fetch all customers with delivery boy and creator info
+  const { productType } = req.query; // ✅ productType filter from query params
+
+  // 1. Fetch all customers (sorted by newest first)
   const customers = await Customer.find()
     .populate("deliveryBoy", "name email phoneNumber area")
-    .populate("createdBy", "name email");
+    .populate("createdBy", "name email")
+    .sort({ createdAt: -1 }); // ✅ Sort by latest created
 
   if (!customers.length) {
     return res.status(200).json({
@@ -200,13 +214,15 @@ exports.getAllCustomers = catchAsyncErrors(async (req, res, next) => {
     });
   }
 
-  // 2. Get all subscriptions with required fields
+  // 2. Get all subscriptions and populate products with name & productType
   const subscriptions = await Subscription.find({
-    customer: { $in: customers.map(c => c._id) },
-    status: { $in: ["Active", "Blocked"] }
-  }).select(
-    "customer status subscriptionPlan startDate endDate isActive deliveryDays frequency price totalPrice deliveryTime discount products"
-  );
+    customer: { $in: customers.map((c) => c._id) },
+    status: { $in: ["Active", "Blocked"] },
+  })
+    .select(
+      "customer status subscriptionPlan startDate endDate isActive deliveryDays frequency price totalPrice deliveryTime discount products"
+    )
+    .populate("products", "name productType"); // ✅ populate products
 
   // 3. Build a map: customerId => latest subscription
   const subscriptionMap = {};
@@ -215,22 +231,25 @@ exports.getAllCustomers = catchAsyncErrors(async (req, res, next) => {
     if (!customerId) return;
 
     const existing = subscriptionMap[customerId];
-    if (
-      !existing ||
-      new Date(sub.startDate) > new Date(existing.startDate)
-    ) {
+    if (!existing || new Date(sub.startDate) > new Date(existing.startDate)) {
       subscriptionMap[customerId] = sub;
     }
   });
 
   // 4. Merge subscription data into each customer
-  const enrichedCustomers = customers.map((customer) => {
+  let enrichedCustomers = customers.map((customer) => {
     const sub = subscriptionMap[customer._id.toString()] || null;
+
+    // Extract product types
+    const productTypes = sub?.products?.length
+      ? sub.products.map((p) => p.productType)
+      : [];
 
     return {
       ...customer.toObject(),
       subscriptionStatus: sub?.status || "No Plan",
-      subscriptionPlan: sub?.subscriptionPlan || customer.subscriptionPlan || "No Plan",
+      subscriptionPlan:
+        sub?.subscriptionPlan || customer.subscriptionPlan || "No Plan",
       subscriptionStartDate: sub?.startDate || null,
       subscriptionEndDate: sub?.endDate || null,
       isActive: sub?.isActive ?? false,
@@ -240,11 +259,19 @@ exports.getAllCustomers = catchAsyncErrors(async (req, res, next) => {
       totalPrice: sub?.totalPrice || null,
       deliveryTime: sub?.deliveryTime || null,
       discount: sub?.discount || null,
-      products: sub?.products || [],
+      products: sub?.products || [], // full product data (with name & productType)
+      productTypes: productTypes, // productType array
     };
   });
 
-  // 5. Return final enriched response
+  // 5. Apply productType filter if query param exists
+  if (productType) {
+    enrichedCustomers = enrichedCustomers.filter((customer) =>
+      customer.productTypes.includes(productType)
+    );
+  }
+
+  // 6. Return final response
   res.status(200).json({
     success: true,
     count: enrichedCustomers.length,
@@ -304,7 +331,7 @@ exports.updateCustomer = catchAsyncErrors(async (req, res, next) => {
     phoneNumber,
     productType,
     deliveryDays,
-    deliveryBoy,
+    deliveryBoy,   // delivery boy ID
     subscriptionPlan,
     quantity,
     address,
@@ -317,7 +344,15 @@ exports.updateCustomer = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Customer not found", 404));
   }
 
-  // 📌 2. Update only provided customer fields
+  // 🔍 2. Validate delivery boy if provided
+  if (deliveryBoy) {
+    const deliveryBoyExists = await DeliveryBoy.findById(deliveryBoy);
+    if (!deliveryBoyExists) {
+      return next(new ErrorHandler("Assigned delivery boy not found", 404));
+    }
+  }
+
+  // 📌 3. Update only provided customer fields
   if (name) customer.name = name;
   if (phoneNumber) customer.phoneNumber = phoneNumber;
   if (productType) customer.productType = productType;
@@ -330,20 +365,24 @@ exports.updateCustomer = catchAsyncErrors(async (req, res, next) => {
 
   await customer.save();
 
-  // 🔍 3. Find or create/update subscription
+  // 🔍 4. Find or create/update subscription
   let subscription = await Subscription.findOne({ customer: customer._id });
 
   let plan = null;
   if (subscriptionPlan) {
     plan = await SubscriptionPlan.findOne({ subscriptionPlan });
-    if (!plan) return next(new ErrorHandler("Subscription plan not found", 404));
+    if (!plan)
+      return next(new ErrorHandler("Subscription plan not found", 404));
   }
 
   if (!subscription) {
     // 🆕 Create new subscription if not found
     if (!plan) {
-      plan = await SubscriptionPlan.findOne({ subscriptionPlan: customer.subscriptionPlan });
-      if (!plan) return next(new ErrorHandler("Subscription plan not found", 404));
+      plan = await SubscriptionPlan.findOne({
+        subscriptionPlan: customer.subscriptionPlan,
+      });
+      if (!plan)
+        return next(new ErrorHandler("Subscription plan not found", 404));
     }
 
     subscription = await Subscription.create({
@@ -352,7 +391,7 @@ exports.updateCustomer = catchAsyncErrors(async (req, res, next) => {
       phoneNumber: customer.phoneNumber,
       productType: customer.productType,
       deliveryDays: customer.deliveryDays,
-      assignedDeliveryBoy: customer.deliveryBoy,
+      assignedDeliveryBoy: deliveryBoy || customer.deliveryBoy,
       address: customer.address,
       subscriptionPlan: plan.subscriptionPlan,
       frequency: frequency || "Every Day",
@@ -389,11 +428,13 @@ exports.updateCustomer = catchAsyncErrors(async (req, res, next) => {
   // ✅ Final response
   res.status(200).json({
     success: true,
-    message: "Customer and subscription updated successfully",
+    message:
+      "Customer and subscription updated successfully with delivery boy assigned",
     customer,
     subscription,
   });
 });
+
 
 
 

@@ -499,7 +499,7 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
 // });
 
 exports.getAllInvoices = catchAsyncErrors(async (req, res, next) => {
-  const { from, to } = req.query;
+  const { from, to, productType } = req.query;
 
   const filter = {};
 
@@ -511,10 +511,17 @@ exports.getAllInvoices = catchAsyncErrors(async (req, res, next) => {
     };
   }
 
+  // Apply productType filter if provided
+  if (productType) {
+    filter.productType = productType; // ✅ filter by productType
+  }
+
+  // Fetch invoices with filters
   const invoices = await Invoice.find(filter, {
     customerName: 1,
     invoiceId: 1,
     subscriptionPlan: 1,
+    productType: 1,       // ensure productType is returned
     price: 1,
     paymentStatus: 1,
     _id: 1,
