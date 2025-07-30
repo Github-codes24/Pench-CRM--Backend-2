@@ -54,7 +54,7 @@ const customerSchema = new mongoose.Schema(
         },
         price: {                     // ✅ NEW FIELD
             type: Number,
-            required: true,
+            required: false,
         },
         address: {
             type: String,
