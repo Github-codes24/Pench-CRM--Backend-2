@@ -77,6 +77,12 @@ exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("All fields are required", 400));
   }
 
+  const existingCustomer = await Customer.findOne({ phoneNumber });
+if (existingCustomer) {
+   return next(new ErrorHandler("Customer with this phone number already exists", 400));
+}
+
+
   // ✅ 2. Validate quantity & price
   const quantityNumber = Number(quantity);
   const priceNumber = Number(price);
