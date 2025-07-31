@@ -3,8 +3,12 @@ const ErrorHandler = require("../utils/errorhandler");
 const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const SubscriptionPlan = require("../models/subscrptionplanModel");
 const Subscription = require("../models/subscrptionModel");
-const DeliveryBoy = require("../models/deliveryBoyModel")
+const DeliveryBoy = require("../models/deliveryBoyModel");
+const Product = require("../models/productModel");
+const Invoice = require("../models/invoiceModel");
+const Notification = require("../models/notificationModel")
 // ➕ Add a new customer
+
 // exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
 //   const {
 //     name,
@@ -14,9 +18,12 @@ const DeliveryBoy = require("../models/deliveryBoyModel")
 //     deliveryBoy,
 //     subscriptionPlan,
 //     quantity,
+//     price,           // ✅ NEW FIELD ADDED
 //     address,
+//     frequency, // optional
 //   } = req.body;
 
+//   // ✅ 1. Validate required fields
 //   if (
 //     !name ||
 //     !phoneNumber ||
@@ -25,11 +32,37 @@ const DeliveryBoy = require("../models/deliveryBoyModel")
 //     !deliveryBoy ||
 //     !subscriptionPlan ||
 //     !quantity ||
+//     !price ||        // ✅ VALIDATE PRICE
 //     !address
 //   ) {
 //     return next(new ErrorHandler("All fields are required", 400));
 //   }
 
+//   const existingCustomer = await Customer.findOne({ phoneNumber });
+// if (existingCustomer) {
+//    return next(new ErrorHandler("Customer with this phone number already exists", 400));
+// }
+
+
+//   // ✅ 2. Validate quantity & price
+//   const quantityNumber = Number(quantity);
+//   const priceNumber = Number(price);
+
+//   if (isNaN(quantityNumber) || quantityNumber <= 0) {
+//     return next(new ErrorHandler("Quantity must be a valid number", 400));
+//   }
+
+//   if (isNaN(priceNumber) || priceNumber <= 0) {
+//     return next(new ErrorHandler("Price must be a valid number", 400));
+//   }
+
+//   // ✅ 3. Validate subscription plan
+//   const plan = await SubscriptionPlan.findOne({ subscriptionPlan });
+//   if (!plan) {
+//     return next(new ErrorHandler("Subscription plan not found", 404));
+//   }
+
+//   // ✅ 4. Create Customer
 //   const customer = await Customer.create({
 //     name,
 //     phoneNumber,
@@ -37,53 +70,77 @@ const DeliveryBoy = require("../models/deliveryBoyModel")
 //     deliveryDays,
 //     deliveryBoy,
 //     subscriptionPlan,
-//     quantity,
+//     quantity: quantityNumber,
+//     price: priceNumber,   // ✅ SAVE PRICE IN CUSTOMER
 //     address,
-//     createdBy: req.user?._id || null, // attach user if available
+//     createdBy: req.user?._id || null, // Optional
 //   });
 
+//   // ✅ 5. Create Subscription linked to this customer
+//   const subscription = await Subscription.create({
+//     customer: customer._id,
+//     name: customer.name,
+//     phoneNumber: customer.phoneNumber,
+//     productType: customer.productType,
+//     deliveryDays: customer.deliveryDays,
+//     assignedDeliveryBoy: customer.deliveryBoy,
+//     address: customer.address,
+//     subscriptionPlan: plan.subscriptionPlan,
+//     frequency: frequency || "Every Day",
+//     price: priceNumber,     // ✅ USE PRICE FROM REQUEST
+//     startDate: new Date(),
+//     endDate: null, // Optional: can be calculated later
+//     status: "Active",
+//     deliveryTime: plan.deliveryTime,
+//     products: plan.products,
+//     discount: plan.discount,
+//     totalPrice: priceNumber, // ✅ CALCULATE TOTAL PRICE
+//     isActive: true,
+//   });
+
+//   // ✅ 6. Response
 //   res.status(201).json({
 //     success: true,
-//     message: "Customer created successfully",
+//     message: "Customer and subscription created successfully",
 //     customer,
+//     subscription,
 //   });
 // });
+// controllers/customerController.js
+
 exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
   const {
     name,
     phoneNumber,
-    productType,
+    productType, // <-- this will be the name, like "Fresh Milk"
+    size,
     deliveryDays,
     deliveryBoy,
     subscriptionPlan,
     quantity,
-    price,           // ✅ NEW FIELD ADDED
+    price,
     address,
-    frequency, // optional
+    frequency,
+    paymentMode,
+    paymentStatus,
+    isPartialPayment,
+    amountPaid,
   } = req.body;
 
-  // ✅ 1. Validate required fields
+  // Validate required fields
   if (
-    !name ||
-    !phoneNumber ||
-    !productType ||
-    !deliveryDays ||
-    !deliveryBoy ||
-    !subscriptionPlan ||
-    !quantity ||
-    !price ||        // ✅ VALIDATE PRICE
-    !address
+    !name || !phoneNumber || !productType || !size || !deliveryDays || !deliveryBoy ||
+    !subscriptionPlan || !quantity || !price || !address || !paymentMode
   ) {
     return next(new ErrorHandler("All fields are required", 400));
   }
 
+  // Check if customer already exists
   const existingCustomer = await Customer.findOne({ phoneNumber });
-if (existingCustomer) {
-   return next(new ErrorHandler("Customer with this phone number already exists", 400));
-}
+  if (existingCustomer) {
+    return next(new ErrorHandler("Customer with this phone number already exists", 400));
+  }
 
-
-  // ✅ 2. Validate quantity & price
   const quantityNumber = Number(quantity);
   const priceNumber = Number(price);
 
@@ -95,56 +152,132 @@ if (existingCustomer) {
     return next(new ErrorHandler("Price must be a valid number", 400));
   }
 
-  // ✅ 3. Validate subscription plan
+  // Get subscription plan
   const plan = await SubscriptionPlan.findOne({ subscriptionPlan });
   if (!plan) {
     return next(new ErrorHandler("Subscription plan not found", 404));
   }
 
-  // ✅ 4. Create Customer
+  // Get product by name (productType) and size
+  const product = await Product.findOne({ productType, size });
+  if (!product) {
+    return next(new ErrorHandler("Product not found for given type and size", 404));
+  }
+
+  if (product.stock < quantityNumber) {
+    return next(new ErrorHandler("Insufficient stock available", 400));
+  }
+
+  // Create customer
   const customer = await Customer.create({
     name,
     phoneNumber,
-    productType,
+    productType: product._id,
+    size,
     deliveryDays,
     deliveryBoy,
     subscriptionPlan,
-    quantity: quantityNumber,
-    price: priceNumber,   // ✅ SAVE PRICE IN CUSTOMER
+    quantity,
+    price,
     address,
-    createdBy: req.user?._id || null, // Optional
+    createdBy: req.user?._id || null,
   });
 
-  // ✅ 5. Create Subscription linked to this customer
+  // Create subscription
   const subscription = await Subscription.create({
     customer: customer._id,
     name: customer.name,
     phoneNumber: customer.phoneNumber,
-    productType: customer.productType,
+    productType: product._id,  // ✅ fixed here
+    size,
     deliveryDays: customer.deliveryDays,
     assignedDeliveryBoy: customer.deliveryBoy,
     address: customer.address,
     subscriptionPlan: plan.subscriptionPlan,
     frequency: frequency || "Every Day",
-    price: priceNumber,     // ✅ USE PRICE FROM REQUEST
+    price: priceNumber,
     startDate: new Date(),
-    endDate: null, // Optional: can be calculated later
     status: "Active",
     deliveryTime: plan.deliveryTime,
     products: plan.products,
     discount: plan.discount,
-    totalPrice: priceNumber, // ✅ CALCULATE TOTAL PRICE
+    totalPrice: priceNumber,
     isActive: true,
   });
 
-  // ✅ 6. Response
+  // Generate invoice ID
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const yyyy = today.getFullYear();
+  const dateStr = `${dd}${mm}${yyyy}`;
+
+  const countToday = await Invoice.countDocuments({
+    createdAt: {
+      $gte: new Date(`${yyyy}-${mm}-${dd}T00:00:00.000Z`),
+      $lte: new Date(`${yyyy}-${mm}-${dd}T23:59:59.999Z`)
+    }
+  });
+
+  const paddedCount = String(countToday + 1).padStart(3, '0');
+  const invoiceId = `INV-${dateStr}-${paddedCount}`;
+
+  // Calculate payment
+  let finalPaymentStatus = paymentStatus || "Unpaid";
+  let paidAmount = 0;
+  let dueAmount = priceNumber;
+  let isPartial = false;
+
+  if (isPartialPayment && amountPaid) {
+    paidAmount = parseFloat(amountPaid);
+    dueAmount = priceNumber - paidAmount;
+    isPartial = true;
+    finalPaymentStatus = paidAmount < priceNumber ? "Partial" : "Paid";
+  } else if (finalPaymentStatus === "Paid") {
+    paidAmount = priceNumber;
+    dueAmount = 0;
+  }
+
+  // Deduct product stock
+  product.stock -= quantityNumber;
+  await product.save();
+
+  // Create invoice
+  const invoice = await Invoice.create({
+    invoiceId,
+    customer: customer._id,
+    customerName: customer.name,
+    productId: product._id,
+    productType: product._id,  // ✅ fixed here
+    size,
+    productQuantity: quantityNumber,
+    price: priceNumber,
+    subscriptionPlan,
+    paymentMode,
+    paymentStatus: finalPaymentStatus,
+    partialPayment: isPartial,
+    amountPaid: paidAmount,
+    amountDue: dueAmount
+  });
+
+  // Create delivery boy notification
+  if (customer.deliveryBoy) {
+    await Notification.create({
+      deliveryBoy: customer.deliveryBoy,
+      message: `New invoice (${invoiceId}) created for ${customer.name}.`
+    });
+  }
+
   res.status(201).json({
     success: true,
-    message: "Customer and subscription created successfully",
+    message: "Customer, subscription, and invoice created successfully",
     customer,
     subscription,
+    invoice
   });
 });
+
+
 
 // 📋 Get all customers
 // exports.getAllCustomers = catchAsyncErrors(async (req, res, next) => {

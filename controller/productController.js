@@ -5,7 +5,7 @@ const ErrorHandler = require("../utils/errorhandler");
 const Invoice = require("../models/invoiceModel"); // Import Invoice model
 const DeliveryBoy = require("../models/deliveryBoyModel"); // Import DeliveryBoy model
 exports.createProduct = catchAsyncErrors(async (req, res, next) => {
-    const {description, productType,stock, quantity, price } = req.body;
+    const {description, productType,stock, quantity, price,size } = req.body;
 
     if (!description || !quantity || !price ) {
         return next(new ErrorHandler("All fields are required", 400));
@@ -16,6 +16,7 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
         quantity,
         stock,
         productType,
+        size,
         price: Number(price),
         user: req.user ? req.user._id : null,
         image: [],

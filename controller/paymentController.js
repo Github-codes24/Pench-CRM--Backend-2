@@ -281,6 +281,7 @@ exports.getAllPendingPayments = catchAsyncErrors(async (req, res, next) => {
     .sort({ createdAt: -1 });
 
   const data = pendingInvoices.map(inv => ({
+    _id: inv._id,
     invoiceId: inv.invoiceId,
     customerName: inv.customer?.name || "N/A",
     productType: inv.productType,

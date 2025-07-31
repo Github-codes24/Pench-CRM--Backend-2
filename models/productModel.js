@@ -34,7 +34,12 @@ const productSchema = new mongoose.Schema(
         },
         size: {
             type: String,
+            required: true,
+            enum: ["1kg", "1/2kg", "1ltr", "1/2ltr"],
         },
+        // size: {
+        //     type: String,
+        // },
         image: {
             type: [String], // URL or file path
         },

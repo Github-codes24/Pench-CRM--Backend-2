@@ -17,8 +17,8 @@ const subscriptionSchema = new mongoose.Schema(
       match: [/^[0-9]{10}$/, "Please enter a valid 10-digit phone number"],
     },
     productType: {
-      type: String,
-      enum: ["A2 Milk", "A2 Cow Ghee", "Paneer", "Buttermilk", "Curd"],
+       type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
       required: false,
     },
     deliveryDays: {

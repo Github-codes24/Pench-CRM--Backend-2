@@ -30,8 +30,8 @@ const invoiceSchema = new mongoose.Schema(
       default: "Pending",
     },
     productType: {
-      type: String,
-      enum: ["A2 Milk", "A2 Cow Ghee", "Paneer", "Buttermilk", "Curd"],
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
       required: [true, "Product type is required"]
     },
     productQuantity: {
@@ -42,6 +42,11 @@ const invoiceSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    size: {
+            type: String,
+            required: true,
+            enum: ["1kg", "1/2kg", "1ltr", "1/2ltr"],
+        },
     price: {
       type: Number,
       required: [true, "Price is required"]
@@ -97,7 +102,7 @@ const invoiceSchema = new mongoose.Schema(
     },
     paymentMode: {
       type: String,
-      enum: ["GooglePay", "BHIM", "UPI", "Cash"],
+      enum: ["UPI", "Cash"],
       required: [true, "Payment mode is required"]
     },
     paymentStatus: {

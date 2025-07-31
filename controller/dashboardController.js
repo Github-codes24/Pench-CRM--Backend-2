@@ -300,12 +300,8 @@ exports.getWeeklyEarningsByDay = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-
 exports.getDeliverySummary = catchAsyncErrors(async (req, res, next) => {
   const invoices = await Invoice.find({ status: { $in: ["Delivered", "Accepted", "Pending"] } });
-
-  let totalDeliveredBottles = 0;
-  let totalReturnedBottles = 0;
 
   let summaryByQty = {
     "1L": { delivered: 0, returned: 0 },
@@ -316,6 +312,7 @@ exports.getDeliverySummary = catchAsyncErrors(async (req, res, next) => {
     const qty = inv.productQuantity?.toString().trim();
     const returned = Number(inv.bottleReturned) || 0;
 
+    // Count delivered by size
     if (qty === "1" || qty === "1L") {
       summaryByQty["1L"].delivered += 1;
       summaryByQty["1L"].returned += returned;
@@ -323,30 +320,29 @@ exports.getDeliverySummary = catchAsyncErrors(async (req, res, next) => {
       summaryByQty["0.5L"].delivered += 1;
       summaryByQty["0.5L"].returned += returned;
     }
-
-    totalDeliveredBottles += 1;
-    totalReturnedBottles += returned;
   });
+
+  const totalDeliveredBottles = summaryByQty["1L"].delivered + summaryByQty["0.5L"].delivered;
+  const totalReturnedBottles = summaryByQty["1L"].returned + summaryByQty["0.5L"].returned;
 
   res.status(200).json({
     success: true,
     summary: {
       totalDeliveredBottles,
-      totalReturnedBottles: parseFloat(totalReturnedBottles.toFixed(2)),
+      totalReturnedBottles,
       byQuantity: {
         "1L": {
           delivered: summaryByQty["1L"].delivered,
-          returned: parseFloat(summaryByQty["1L"].returned.toFixed(2))
+          returned: summaryByQty["1L"].returned
         },
         "0.5L": {
           delivered: summaryByQty["0.5L"].delivered,
-          returned: parseFloat(summaryByQty["0.5L"].returned.toFixed(2))
+          returned: summaryByQty["0.5L"].returned
         }
       }
     }
   });
 });
-
 
 function getStartAndEndOfWeek() {
   const now = new Date();

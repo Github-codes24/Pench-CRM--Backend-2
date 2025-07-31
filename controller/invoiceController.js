@@ -642,41 +642,51 @@ exports.sendMultipleInvoicesOnWhatsApp = catchAsyncErrors(async (req, res, next)
 exports.getInvoiceById = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
 
-  // Find invoice by MongoDB _id
+  // 1. Find invoice by ID
   const invoice = await Invoice.findById(id);
   if (!invoice) {
     return next(new ErrorHandler("Invoice not found", 404));
   }
 
-  // Find customer name
-  const customer = await Customer.findById(invoice.customer);
-  if (!customer) {
-    return next(new ErrorHandler("Customer not found", 404));
+  // 2. Safely get customer name (fallback to invoice.customerName)
+  let customerName = invoice.customerName || "N/A";
+  if (invoice.customer) {
+    const customer = await Customer.findById(invoice.customer).select("name");
+    if (customer && customer.name) {
+      customerName = customer.name;
+    }
   }
 
-  // Find product details
-  const product = await Product.findOne({ productType: invoice.productType });
+  // 3. Get product description (optional)
+  let productDescription = "N/A";
+  if (invoice.productType) {
+    const product = await Product.findById(invoice.productType).select("description");
+    if (product?.description) {
+      productDescription = product.description;
+    }
+  }
 
+  // 4. Format response
   const total = invoice.price;
+  const formattedDate = invoice.createdAt?.toISOString().split("T")[0] || "N/A";
 
   res.status(200).json({
     success: true,
     invoiceDetails: {
       invoiceId: invoice.invoiceId,
-      customerName: customer.name,
-      date: invoice.createdAt.toISOString().split("T")[0],
+      customerName,
+      date: formattedDate,
       productType: invoice.productType,
-      description: product?.description || "N/A",
+      description: productDescription,
       quantity: invoice.productQuantity,
       price: invoice.price,
       total,
       grandTotal: total,
       paymentStatus: invoice.paymentStatus,
-      paymentMode: invoice.paymentMode
+      paymentMode: invoice.paymentMode,
     }
   });
 });
-
 // 🔍 Get single invoice by ID
 // exports.getInvoiceById = catchAsyncErrors(async (req, res, next) => {
 //   const { id } = req.params;

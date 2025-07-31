@@ -23,9 +23,15 @@ const customerSchema = new mongoose.Schema(
             required: [false, "Gender is required"],
         },
         productType: {
-            type: String,
-            enum: ["A2 Milk", "A2 Cow Ghee", "Paneer", "Buttermilk", "Curd"],
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Product",
+            // enum: ["A2 Milk", "A2 Cow Ghee", "Paneer", "Buttermilk", "Curd"],
             required: [false, "Product type is required"],
+        },
+         size: {
+            type: String,
+            required: true,
+            enum: ["1kg", "1/2kg", "1ltr", "1/2ltr"],
         },
         deliveryDays: {
             type: String,

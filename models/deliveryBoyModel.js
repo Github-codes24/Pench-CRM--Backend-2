@@ -31,8 +31,8 @@ const deliveryBoySchema = new mongoose.Schema(
       select: false, // hide password on query
     },
     productType: {
-      type: [String],
-      enum: ["A2 Milk", "A2 Cow Ghee", "Paneer", "Buttermilk", "Curd"],
+       type: mongoose.Schema.Types.ObjectId,
+       ref: "Product",
       required: [true, "At least one product type is required"],
     },
     assignedCustomers: [
