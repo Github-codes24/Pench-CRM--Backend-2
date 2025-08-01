@@ -138,6 +138,7 @@ exports.getPendingPayments = catchAsyncErrors(async (req, res, next) => {
       invoiceDate: invoice.invoiceDate,
       productType: invoice.productType,
       quantity: invoice.productQuantity,
+      size: invoice.size,
       price: invoice.price,
       subscriptionPlan: invoice.subscriptionPlan,
       paymentMode: invoice.paymentMode,

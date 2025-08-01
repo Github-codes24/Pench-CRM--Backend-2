@@ -2,16 +2,34 @@ const Lead = require("../models/leadModel");
 const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const ErrorHandler = require("../utils/errorhandler");
 const Customer = require("../models/customerModel");
-
+const Product = require("../models/productModel");
+const Subscription = require("../models/subscrptionplanModel")
 // Create Lead
 exports.createLead = catchAsyncErrors(async (req, res, next) => {
   const { date, customerName, source, product, status } = req.body;
 
   if (!date || !customerName || !source || !product || !status) {
-    return next(new ErrorHandler("All fields are required", 400));
+    return res.status(400).json({ success: false, message: "All fields are required" });
   }
 
-  const lead = await Lead.create({ date, customerName, source, product, status });
+  // 🟡 Fetch the product from database by name
+  const foundProduct = await Product.findOne({ productType: product });
+
+  if (!foundProduct) {
+    return res.status(404).json({
+      success: false,
+      message: `Product '${product}' not found`,
+    });
+  }
+
+  // 🔵 Create lead with product reference (you can use ID or name as per your schema)
+  const lead = await Lead.create({
+    date,
+    customerName,
+    source,
+    product: foundProduct._id, // or foundProduct.name if storing name directly
+    status,
+  });
 
   res.status(201).json({
     success: true,
@@ -19,36 +37,68 @@ exports.createLead = catchAsyncErrors(async (req, res, next) => {
     lead,
   });
 });
-
-
 // controller/lead.controller.js
+// controller/lead.controller.js
+const moment = require("moment");
+
 exports.getLeadSummary = catchAsyncErrors(async (req, res, next) => {
-  const totalLeads = await Lead.countDocuments();
-  const convertedLeads = await Lead.countDocuments({ leadOutcome: "Converted" });
+  const { filter } = req.query;
+
+  // Determine the starting date based on the filter
+  let startDate;
+  if (filter === "daily") {
+    startDate = moment().startOf("day").toDate();
+  } else if (filter === "weekly") {
+    startDate = moment().startOf("week").toDate();
+  } else if (filter === "monthly") {
+    startDate = moment().startOf("month").toDate();
+  }
+
+  // Build filter conditions
+  const leadFilter = startDate ? { createdAt: { $gte: startDate } } : {};
+  const subscriptionFilter = startDate ? { subscriptionPlan: { $exists: true, $ne: null }, createdAt: { $gte: startDate } } : { subscriptionPlan: { $exists: true, $ne: null } };
+
+  // 1. Count leads and conversions
+  const totalLeads = await Lead.countDocuments(leadFilter);
+  const convertedLeads = await Lead.countDocuments({
+    ...leadFilter,
+    leadOutcome: "Converted"
+  });
 
   const conversionRate = totalLeads === 0 ? 0 : Math.round((convertedLeads / totalLeads) * 100);
 
-  // Aggregate to find top selling product (most interested product in leads)
+  // 2. Top selling product from leads
   const topSellingProductAgg = await Lead.aggregate([
+    { $match: leadFilter },
     { $group: { _id: "$product", count: { $sum: 1 } } },
     { $sort: { count: -1 } },
     { $limit: 1 }
   ]);
-
   const topSellingProduct = topSellingProductAgg[0]?._id || "N/A";
-  const topSellingProductCount = topSellingProductAgg[0]?.count || 0;
+
+  // 3. Top subscription plan used from subscriptions
+  const topSubscriptionPlanAgg = await Subscription.aggregate([
+    { $match: subscriptionFilter },
+    { $group: { _id: "$subscriptionPlan", count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+    { $limit: 1 }
+  ]);
+  const topSellingSubscription = topSubscriptionPlanAgg[0]?._id || "N/A";
 
   res.status(200).json({
     success: true,
+    filter: filter || "all",
     analytics: {
       totalLeads,
       convertedLeads,
       conversionRate: `${conversionRate}%`,
       topSellingProduct,
-      topSellingSubscription: topSellingProductCount,
+      topSellingSubscription
     }
   });
 });
+
+
 
 // Add Follow-Up to Lead with auto-generated date
 exports.addFollowUp = catchAsyncErrors(async (req, res, next) => {
@@ -127,49 +177,70 @@ exports.convertLeadToCustomer = catchAsyncErrors(async (req, res, next) => {
   const {
     name,
     phoneNumber,
-    productType,
+    productType,     // e.g. "A2 Milk"
+    size,            // e.g. "1ltr"
     deliveryDays,
     deliveryBoyId,
     subscriptionPlan,
     quantity,
-    address
+    address,
   } = req.body;
 
   // ✅ Validate required fields
-  if (!name || !phoneNumber || !productType || !deliveryDays || !subscriptionPlan || !quantity || !address) {
-    return next(new ErrorHandler("All fields are required to convert lead", 400));
+  if (
+    !name ||
+    !phoneNumber ||
+    !productType ||
+    !size ||
+    !deliveryDays ||
+    !subscriptionPlan ||
+    !quantity ||
+    !address
+  ) {
+    return next(new ErrorHandler("All required fields must be provided", 400));
   }
 
-  // ✅ Find the lead
+  // ✅ Fetch the product from DB using name + size
+  const product = await Product.findOne({ productType, size });
+  if (!product) {
+    return next(new ErrorHandler(`Product '${productType}' with size '${size}' not found`, 404));
+  }
+
+  // ✅ Find lead
   const lead = await Lead.findById(id);
-  if (!lead) return next(new ErrorHandler("Lead not found", 404));
+  if (!lead) {
+    return next(new ErrorHandler("Lead not found", 404));
+  }
 
   if (lead.leadOutcome === "Converted") {
-    return next(new ErrorHandler("Lead already converted to customer", 400));
+    return next(new ErrorHandler("Lead already converted", 400));
   }
 
-  // ✅ Create the customer using provided data
+  // ✅ Create new customer
   const customer = await Customer.create({
     name,
     phoneNumber,
-    productType,
+    productType: product._id,   // ObjectId reference to Product
+    size,
+    price: product.price,       // pulled from product
     deliveryDays,
     deliveryBoy: deliveryBoyId || null,
     subscriptionPlan,
     quantity,
-    address
+    address,
   });
 
-  // ✅ Update the lead outcome
+  // ✅ Update lead outcome
   lead.leadOutcome = "Converted";
   await lead.save();
 
   res.status(201).json({
     success: true,
-    message: "Lead successfully converted to customer",
-    customer
+    message: "Lead converted to customer successfully",
+    customer,
   });
 });
+
 
 
 // Mark Lead as Not Interested
@@ -236,13 +307,48 @@ exports.getLeadById = catchAsyncErrors(async (req, res, next) => {
 });
 
 // Update Lead
+// exports.updateLead = catchAsyncErrors(async (req, res, next) => {
+//   const { id } = req.params;
+
+//   const lead = await Lead.findByIdAndUpdate(id, req.body, { new: true });
+
+//   if (!lead) {
+//     return next(new ErrorHandler("Lead not found", 404));
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Lead updated successfully",
+//     lead,
+//   });
+// });
+
+
+// Update Lead
 exports.updateLead = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
+  const { date, customerName, source, product, status } = req.body;
 
-  const lead = await Lead.findByIdAndUpdate(id, req.body, { new: true });
+  const updateData = { date, customerName, source, status };
+
+  if (product) {
+    const foundProduct = await Product.findOne({ productType: product });
+    if (!foundProduct) {
+      return res.status(404).json({
+        success: false,
+        message: `Product '${product}' not found`,
+      });
+    }
+    updateData.product = foundProduct._id; // or .productType depending on schema
+  }
+
+  const lead = await Lead.findByIdAndUpdate(id, updateData, { new: true });
 
   if (!lead) {
-    return next(new ErrorHandler("Lead not found", 404));
+    return res.status(404).json({
+      success: false,
+      message: "Lead not found",
+    });
   }
 
   res.status(200).json({

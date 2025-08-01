@@ -17,8 +17,8 @@ const leadSchema = new mongoose.Schema(
       required: true,
     },
     product: {
-      type: String,
-      enum: ["A2 Milk", "A2 Cow Ghee", "Paneer", "Buttermilk", "Curd"],
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
       required: true,
     },
     status: {

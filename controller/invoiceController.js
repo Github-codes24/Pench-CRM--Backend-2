@@ -537,26 +537,52 @@ exports.getAllInvoices = catchAsyncErrors(async (req, res, next) => {
 
 const { generateInvoiceMessage } = require("../utils/whatsappFormatter");
 
+// exports.sendInvoiceOnWhatsApp = catchAsyncErrors(async (req, res, next) => {
+//   const { id } = req.params;
+
+//   const invoice = await Invoice.findById(id).populate("customer");
+//   if (!invoice) return next(new ErrorHandler("Invoice not found", 404));
+
+//   // ✅ Construct WhatsApp message
+//   const message = generateInvoiceMessage(invoice);
+//   const phone = invoice.customer?.phoneNumber;
+
+//   if (!phone) return next(new ErrorHandler("Customer phone number missing", 400));
+
+//   // ✅ Create WhatsApp link
+//   const whatsappLink = `https://wa.me/91${phone}?text=${message}`;
+
+//   res.status(200).json({
+//     success: true,
+//     whatsappLink,
+//   });
+// });
+
 exports.sendInvoiceOnWhatsApp = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
 
-  const invoice = await Invoice.findById(id).populate("customer");
+  const invoice = await Invoice.findById(id).populate({
+    path: "customer",
+    select: "phoneNumber name"
+  });
+
   if (!invoice) return next(new ErrorHandler("Invoice not found", 404));
 
-  // ✅ Construct WhatsApp message
+  const customer = invoice.customer;
+  if (!customer || !customer.phoneNumber) {
+    return next(new ErrorHandler("Customer phone number missing", 400));
+  }
+
   const message = generateInvoiceMessage(invoice);
-  const phone = invoice.customer?.phoneNumber;
-
-  if (!phone) return next(new ErrorHandler("Customer phone number missing", 400));
-
-  // ✅ Create WhatsApp link
-  const whatsappLink = `https://wa.me/91${phone}?text=${message}`;
+  const encodedMessage = encodeURIComponent(message);
+  const whatsappLink = `https://wa.me/91${customer.phoneNumber}?text=${encodedMessage}`;
 
   res.status(200).json({
     success: true,
     whatsappLink,
   });
 });
+
 
 // exports.sendMultipleInvoicesOnWhatsApp = catchAsyncErrors(async (req, res, next) => {
 //   const { invoiceIds } = req.body;
@@ -650,10 +676,14 @@ exports.getInvoiceById = catchAsyncErrors(async (req, res, next) => {
 
   // 2. Safely get customer name (fallback to invoice.customerName)
   let customerName = invoice.customerName || "N/A";
+  let phoneNumber = invoice.phoneNumber || "N/A"
   if (invoice.customer) {
-    const customer = await Customer.findById(invoice.customer).select("name");
+    const customer = await Customer.findById(invoice.customer).select("name phoneNumber");
     if (customer && customer.name) {
       customerName = customer.name;
+    }
+   if (customer && customer.phoneNumber) {
+      phoneNumber = customer.phoneNumber;
     }
   }
 
@@ -675,6 +705,7 @@ exports.getInvoiceById = catchAsyncErrors(async (req, res, next) => {
     invoiceDetails: {
       invoiceId: invoice.invoiceId,
       customerName,
+      phoneNumber,
       date: formattedDate,
       productType: invoice.productType,
       description: productDescription,
