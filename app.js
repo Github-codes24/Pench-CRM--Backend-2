@@ -31,6 +31,9 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
+app.get('/', (req, res)=>{
+  res.status(201).send("Hello Himanshu Bhai...")
+})
 app.use("/api/v1", userRoutes);
 app.use("/api/v1", productRoutes);
 app.use("/api/v1", customerRoutes);

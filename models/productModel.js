@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 
 const productSchema = new mongoose.Schema(
     {
-
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "UsersAuth",
@@ -32,14 +31,11 @@ const productSchema = new mongoose.Schema(
             type: Number,
             required: true,
         },
-        size: {
+        size:{
             type: String,
             required: true,
             enum: ["1kg", "1/2kg", "1ltr", "1/2ltr"],
         },
-        // size: {
-        //     type: String,
-        // },
         image: {
             type: [String], // URL or file path
         },

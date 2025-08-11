@@ -1,6 +1,8 @@
 const Lead = require("../models/leadModel");
+const Order = require("../models/orderModel");
 const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const ErrorHandler = require("../utils/errorhandler");
+const isScheduledOn = require("../utils/scheduleHelper");
 const Customer = require("../models/customerModel");
 const Product = require("../models/productModel");
 const Subscription = require("../models/subscrptionplanModel")
@@ -50,7 +52,7 @@ exports.getLeadSummary = catchAsyncErrors(async (req, res, next) => {
     startDate = moment().startOf("day").toDate();
   } else if (filter === "weekly") {
     startDate = moment().startOf("week").toDate();
-  } else if (filter === "monthly") {
+  } else if (filter === "monthly"){
     startDate = moment().startOf("month").toDate();
   }
 
@@ -171,39 +173,47 @@ exports.convertLeadToCustomerfri = catchAsyncErrors(async (req, res, next) => {
     customer,
   });
 });
+
+
 exports.convertLeadToCustomer = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
 
   const {
-    name,
+    customerName,
     phoneNumber,
-    productType,     // e.g. "A2 Milk"
-    size,            // e.g. "1ltr"
-    deliveryDays,
-    deliveryBoyId,
-    subscriptionPlan,
-    quantity,
     address,
+    productType,
+    productSize,
+    quantity,
+    price,
+    deliveryDays,
+    customDates,
+    subscriptionPlan,
+    deliveryBoyId,
+    paymentMode,
+    paymentStatus,
   } = req.body;
+
 
   // ✅ Validate required fields
   if (
-    !name ||
+    !customerName ||
     !phoneNumber ||
     !productType ||
     !size ||
     !deliveryDays ||
     !subscriptionPlan ||
     !quantity ||
-    !address
+    !address || 
+    !paymentMode
   ) {
     return next(new ErrorHandler("All required fields must be provided", 400));
   }
 
   // ✅ Fetch the product from DB using name + size
-  const product = await Product.findOne({ productType, size });
+  const product = await Product.findOne({ productType});
   if (!product) {
-    return next(new ErrorHandler(`Product '${productType}' with size '${size}' not found`, 404));
+    return next(new ErrorHandler(`Product '${productType}' not found`, 404));
   }
 
   // ✅ Find lead
@@ -220,14 +230,28 @@ exports.convertLeadToCustomer = catchAsyncErrors(async (req, res, next) => {
   const customer = await Customer.create({
     name,
     phoneNumber,
-    productType: product._id,   // ObjectId reference to Product
-    size,
-    price: product.price,       // pulled from product
-    deliveryDays,
-    deliveryBoy: deliveryBoyId || null,
-    subscriptionPlan,
-    quantity,
     address,
+    productType: product._id, // ObjectId reference to Product
+    size,
+    quantity,
+    price: price || product.price, // pulled from product
+    deliveryDays,
+    subscriptionPlan: subscriptionPlan || null,
+    deliveryBoy: deliveryBoyId || null,
+    customDates: deliveryDays === "Custom Days" ? customDates : [],
+  });
+
+  // Create order linked to customer
+  const order = await Order.create({
+    customer: customer._id,
+    product: product._id,
+    quantity,
+    price: price || product.price,
+    deliveryDays,
+    customDates: deliveryDays === "Custom Days" ? customDates : [],
+    deliveryBoy: deliveryBoyId || null,
+    paymentMode,
+    paymentStatus,
   });
 
   // ✅ Update lead outcome
@@ -238,8 +262,80 @@ exports.convertLeadToCustomer = catchAsyncErrors(async (req, res, next) => {
     success: true,
     message: "Lead converted to customer successfully",
     customer,
+    order,
   });
 });
+
+// showing list of orders with details to Admin
+exports.getScheduleForDate = async (req, res) => {
+  try {
+    const dateStr = req.query.date;
+    const target = dateStr ? new Date(dateStr) : new Date();
+    target.setHours(0, 0, 0, 0);
+
+    const orders = await Order.find({})
+      .populate("customer", "name phoneNumber address")
+      .populate("product", "productType size price")
+      .populate("deliveryBoy", "name phoneNumber")
+      .lean();
+
+    const scheduled = orders
+      .filter(order => isScheduledOn(order, target))
+      .map(order => ({
+        orderId: order._id,
+        customer: order.customer && {
+          id: order.customer._id,
+          name: order.customer.name || order.customer.customerName || null,
+          phoneNumber: order.customer.phoneNumber || null,
+          address: order.customer.address || null
+        },
+        product: order.product
+          ? {
+              id: order.product._id,
+              productType: order.product.productType || order.product.name || null,
+              size: order.product.size || null,
+              price: order.price ?? order.product.price ?? null
+            }
+          : {
+              productType: order.productType || null,
+              size: order.size || null,
+              price: order.price || null
+            },
+        quantity: order.quantity,
+        deliveryDays: order.deliveryDays,
+        customMatch: Array.isArray(order.customDates)
+          ? order.customDates.find(cd => {
+              const d = new Date(cd.date);
+              d.setHours(0, 0, 0, 0);
+              return d.getTime() === target.getTime();
+            })
+          : null,
+        deliveryBoy: order.deliveryBoy && {
+          id: order.deliveryBoy._id,
+          name: order.deliveryBoy.name,
+          phoneNumber: order.deliveryBoy.phoneNumber
+        },
+        paymentMode: order.paymentMode || null,
+        paymentStatus: order.paymentStatus || null,
+        orderStatus: order.orderStatus || null,
+        createdAt: order.createdAt
+      }));
+
+    res.status(200).json({
+      success: true,
+      date: target.toISOString().slice(0, 10),
+      count: scheduled.length,
+      scheduled
+    });
+  } catch (err) {
+    console.error("getScheduleForDate error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message
+    });
+  }
+};
 
 
 
@@ -329,7 +425,7 @@ exports.updateLead = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
   const { date, customerName, source, product, status } = req.body;
 
-  const updateData = { date, customerName, source, status };
+  const updateData = { date, customerName, source, product, status };
 
   if (product) {
     const foundProduct = await Product.findOne({ productType: product });

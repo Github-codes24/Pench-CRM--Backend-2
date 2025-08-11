@@ -44,6 +44,13 @@ const customerSchema = new mongoose.Schema(
             ],
             required: [false, "Delivery days are required"],
         },
+        // adding custom dates if customer selects Custom Days in deliveryDates section
+        customDates: [
+          {
+            date: { type: Date, required: true },
+            quantity: { type: String, required: false },
+          },
+        ],
         deliveryBoy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "DeliveryBoy",
