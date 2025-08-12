@@ -13,7 +13,8 @@ const {
 const { isAuthenticatedUser } = require("../middlewares/auth");
 
 // 📦 Create a new invoice
-router.post("/invoice", isAuthenticatedUser, createInvoice);
+// router.post("/invoice", isAuthenticatedUser, createInvoice);
+router.post("/invoice", createInvoice);
 
 // 📋 Get all invoices
 router.get("/invoices", isAuthenticatedUser, getAllInvoices);

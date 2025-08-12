@@ -49,43 +49,69 @@
 // module.exports = mongoose.model("Lead", leadSchema);
 
 
-
 const mongoose = require("mongoose");
 
 const leadSchema = new mongoose.Schema({
-  name: { 
-    type: String, 
-    required: true 
+  leadName: {
+    type: String,
+    required: [true, "Lead name is required"],
+    trim: true,
   },
-  phoneNumber: { 
-    type: String, 
-    required: true 
+  phoneNumber: {
+    type: String,
+    required: [true, "Phone number is required"],
+    trim: true,
+    unique: true,
   },
-  address: { 
-    type: String 
+  address: {
+    type: String,
+    required: [true, "Address is required"],
+    trim: true,
   },
-  productType: { 
-    type: String 
+  productType: {
+    type: String,
+    required: [true, "Product type is required"],
   },
-  productSize: { 
-    type: String 
+  productSize: {
+    type: String,
+    required: [true, "Product size is required"],
   },
-  quantity: { 
-    type: Number 
+  quantity: {
+    type: Number,
+    required: [true, "Quantity is required"],
+    min: 1,
   },
-  price: { 
-    type: Number 
+  price: {
+    type: Number,
+    required: [true, "Price is required"],
+    min: 0,
   },
   deliveryDays: {
     type: String,
     enum: ["daily", "alternate", "monthly", "custom"],
     default: "daily"
   },
-  customDates: [{ type: Date }],
-  subscriptionPlan: { type: String, enum: ["monthly", "weekly", null] },
-  assignDeliveryBoy: { type: String },
-  paymentMode: { type: String, enum: ["cash", "upi", "cod"] },
-  paymentStatus: { type: String, enum: ["unpaid", "paid"], default: "unpaid" },
+  customDates: [
+    { type: Date }
+  ],
+  subscriptionPlan: { 
+    type: String, 
+    enum: ["monthly", "weekly", null] 
+  },
+  assignDeliveryBoy: { 
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "DeliveryBoy",
+    default: null, 
+  },
+  paymentMode: { 
+    type: String, 
+    enum: ["cash", "upi", "cod"] 
+  },
+  paymentStatus: { 
+    type: String, 
+    enum: ["unpaid", "paid"], 
+    default: "unpaid"
+  },
 }, { timestamps: true });
 
-export const Lead = mongoose.model("Lead", leadSchema);
+module.exports  = mongoose.model("Lead", leadSchema);

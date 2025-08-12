@@ -329,159 +329,223 @@ exports.createInvoicefri = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
+// exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
+//   const {
+//     customerName,
+//     productType,
+//     productQuantity,
+//     price, // full price, not unit price
+//     subscriptionPlan,
+//     paymentMode,
+//     paymentStatus,
+//     isPartialPayment,
+//     amountPaid
+//   } = req.body;
+
+//   if (!customerName || !productType || productQuantity == null || price == null || !subscriptionPlan || !paymentMode) {
+//     return next(new ErrorHandler("All fields are required", 400));
+//   }
+
+//   const quantityNumber = parseFloat(productQuantity);
+//   const fixedPrice = parseFloat(price); // ✅ treat price as full amount
+
+//   if (isNaN(quantityNumber) || quantityNumber <= 0) {
+//     return next(new ErrorHandler("Product quantity must be a valid number", 400));
+//   }
+
+//   if (isNaN(fixedPrice) || fixedPrice <= 0) {
+//     return next(new ErrorHandler("Price must be a valid number", 400));
+//   }
+
+//   const customerExists = await Customer.findOne({ name: customerName }).populate("deliveryBoy");
+//   if (!customerExists) return next(new ErrorHandler("Customer not found", 404));
+
+//   const product = await Product.findOne({ productType }).select("productType stock price image");
+//   if (!product) return next(new ErrorHandler("Product type not found", 404));
+
+//   if (product.stock < quantityNumber) {
+//     return next(new ErrorHandler("Insufficient stock available", 400));
+//   }
+
+//   const plan = await SubscriptionPlan.findOne({ subscriptionPlan }).populate("products");
+//   if (!plan) return next(new ErrorHandler("Subscription plan not found", 404));
+
+//   const totalPrice = fixedPrice; // ✅ Don't multiply with quantity
+
+//   // ✅ Handle partial payment
+//   let finalPaymentStatus = paymentStatus || "Unpaid";
+//   let paidAmount = 0;
+//   let dueAmount = totalPrice;
+//   let isPartial = false;
+
+//   if (isPartialPayment && amountPaid) {
+//     paidAmount = parseFloat(amountPaid);
+//     dueAmount = totalPrice - paidAmount;
+//     isPartial = true;
+
+//     if (paidAmount < totalPrice) {
+//       finalPaymentStatus = "Partial";
+//     } else {
+//       finalPaymentStatus = "Paid";
+//     }
+//   } else {
+//     if (finalPaymentStatus === "Paid") {
+//       paidAmount = totalPrice;
+//       dueAmount = 0;
+//     }
+//   }
+
+//   // ✅ Generate invoice ID
+//   const today = new Date();
+//   const dd = String(today.getDate()).padStart(2, '0');
+//   const mm = String(today.getMonth() + 1).padStart(2, '0');
+//   const yyyy = today.getFullYear();
+//   const dateStr = `${dd}${mm}${yyyy}`;
+
+//   const countToday = await Invoice.countDocuments({
+//     createdAt: {
+//       $gte: new Date(`${yyyy}-${mm}-${dd}T00:00:00.000Z`),
+//       $lte: new Date(`${yyyy}-${mm}-${dd}T23:59:59.999Z`)
+//     }
+//   });
+
+//   const paddedCount = String(countToday + 1).padStart(3, '0');
+//   const invoiceId = `INV-${dateStr}-${paddedCount}`;
+
+//   // Update product stock
+//   product.stock -= quantityNumber;
+//   await product.save();
+
+//   const invoice = await Invoice.create({
+//     invoiceId,
+//     customer: customerExists._id,
+//     customerName: customerExists.name,
+//     productId: product._id,
+//     productType,
+//     productQuantity: quantityNumber,
+//     price: fixedPrice, // ✅ save price exactly as passed
+//     subscriptionPlan,
+//     paymentMode,
+//     paymentStatus: finalPaymentStatus,
+//     partialPayment: isPartial,
+//     amountPaid: paidAmount,
+//     amountDue: dueAmount
+//   });
+
+//   // ✅ Subscription logic
+//   const existingSubscription = await Subscription.findOne({
+//     customer: customerExists._id,
+//     productType,
+//     isActive: true
+//   });
+
+//   if (!existingSubscription) {
+//     await Subscription.create({
+//       customer: customerExists._id,
+//       name: customerExists.name,
+//       phoneNumber: customerExists.phoneNumber,
+//       productType,
+//       deliveryDays: "Daily",
+//       assignedDeliveryBoy: customerExists.deliveryBoy?._id || null,
+//       address: customerExists.address || "",
+//       subscriptionPlan: plan.subscriptionPlan,
+//       frequency: "Every Day",
+//       price: plan.totalPrice,
+//       startDate: new Date(),
+//       status: "Active",
+//       deliveryTime: plan.deliveryTime,
+//       products: plan.products,
+//       discount: plan.discount,
+//       totalPrice: plan.totalPrice,
+//       isActive: true,
+//     });
+//   }
+
+//   // ✅ Notify delivery boy
+//   if (customerExists.deliveryBoy) {
+//     await Notification.create({
+//       deliveryBoy: customerExists.deliveryBoy._id,
+//       message: `New invoice (${invoiceId}) created for ${customerExists.name}.`
+//     });
+//   }
+
+//   res.status(201).json({
+//     success: true,
+//     message: "Invoice created. Subscription ensured. Notification sent.",
+//     invoice,
+//     subscriptionPlanDetails: {
+//       plan: plan.subscriptionPlan,
+//       discount: plan.discount,
+//       totalPrice: plan.totalPrice,
+//       deliveryTime: plan.deliveryTime,
+//       products: plan.products
+//     },
+//     remainingStock: product.stock
+//   });
+// });
+
+const generateInvoiceId = () => {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const timestamp = date.getTime().toString().slice(-6); // Last 6 digits of timestamp
+
+    return `INV-${year}${month}${day}-${timestamp}`;
+};
+
 exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
-  const {
-    customerName,
-    productType,
-    productQuantity,
-    price, // full price, not unit price
-    subscriptionPlan,
-    paymentMode,
-    paymentStatus,
-    isPartialPayment,
-    amountPaid
-  } = req.body;
+  try {
+        const {
+            customerName,
+            phoneNumber,
+            productType,
+            productSize,
+            productQuantity,
+            price,
+            subscriptionPlan,
+            paymentMode,
+            paymentStatus,
+            invoiceDate
+        } = req.body;
 
-  if (!customerName || !productType || productQuantity == null || price == null || !subscriptionPlan || !paymentMode) {
-    return next(new ErrorHandler("All fields are required", 400));
-  }
+        // Basic validation
+        if (!customerName || !phoneNumber || !price) {
+            return res.status(400).json({
+                message: 'Customer Name, Phone Number, and Price are required fields.'
+            });
+        }
 
-  const quantityNumber = parseFloat(productQuantity);
-  const fixedPrice = parseFloat(price); // ✅ treat price as full amount
+        // Create a new invoice instance
+        const newInvoice = new Invoice({
+            customerName,
+            phoneNumber,
+            invoiceId: generateInvoiceId(), // Generate a unique ID
+            productType,
+            productSize,
+            productQuantity,
+            price,
+            subscriptionPlan,
+            paymentMode,
+            paymentStatus,
+            invoiceDate: invoiceDate ? new Date(invoiceDate) : new Date(), // Use provided date or now
+        });
 
-  if (isNaN(quantityNumber) || quantityNumber <= 0) {
-    return next(new ErrorHandler("Product quantity must be a valid number", 400));
-  }
+        // Save the invoice to the database
+        const savedInvoice = await newInvoice.save();
 
-  if (isNaN(fixedPrice) || fixedPrice <= 0) {
-    return next(new ErrorHandler("Price must be a valid number", 400));
-  }
+        res.status(201).json({
+            message: 'Invoice created successfully!',
+            invoice: savedInvoice
+        });
 
-  const customerExists = await Customer.findOne({ name: customerName }).populate("deliveryBoy");
-  if (!customerExists) return next(new ErrorHandler("Customer not found", 404));
-
-  const product = await Product.findOne({ productType }).select("productType stock price image");
-  if (!product) return next(new ErrorHandler("Product type not found", 404));
-
-  if (product.stock < quantityNumber) {
-    return next(new ErrorHandler("Insufficient stock available", 400));
-  }
-
-  const plan = await SubscriptionPlan.findOne({ subscriptionPlan }).populate("products");
-  if (!plan) return next(new ErrorHandler("Subscription plan not found", 404));
-
-  const totalPrice = fixedPrice; // ✅ Don't multiply with quantity
-
-  // ✅ Handle partial payment
-  let finalPaymentStatus = paymentStatus || "Unpaid";
-  let paidAmount = 0;
-  let dueAmount = totalPrice;
-  let isPartial = false;
-
-  if (isPartialPayment && amountPaid) {
-    paidAmount = parseFloat(amountPaid);
-    dueAmount = totalPrice - paidAmount;
-    isPartial = true;
-
-    if (paidAmount < totalPrice) {
-      finalPaymentStatus = "Partial";
-    } else {
-      finalPaymentStatus = "Paid";
+    } catch (error) {
+        console.error('Error creating invoice:', error);
+        res.status(500).json({
+            message: 'Server error while creating invoice.',
+            error: error.message
+        });
     }
-  } else {
-    if (finalPaymentStatus === "Paid") {
-      paidAmount = totalPrice;
-      dueAmount = 0;
-    }
-  }
-
-  // ✅ Generate invoice ID
-  const today = new Date();
-  const dd = String(today.getDate()).padStart(2, '0');
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const yyyy = today.getFullYear();
-  const dateStr = `${dd}${mm}${yyyy}`;
-
-  const countToday = await Invoice.countDocuments({
-    createdAt: {
-      $gte: new Date(`${yyyy}-${mm}-${dd}T00:00:00.000Z`),
-      $lte: new Date(`${yyyy}-${mm}-${dd}T23:59:59.999Z`)
-    }
-  });
-
-  const paddedCount = String(countToday + 1).padStart(3, '0');
-  const invoiceId = `INV-${dateStr}-${paddedCount}`;
-
-  // Update product stock
-  product.stock -= quantityNumber;
-  await product.save();
-
-  const invoice = await Invoice.create({
-    invoiceId,
-    customer: customerExists._id,
-    customerName: customerExists.name,
-    productId: product._id,
-    productType,
-    productQuantity: quantityNumber,
-    price: fixedPrice, // ✅ save price exactly as passed
-    subscriptionPlan,
-    paymentMode,
-    paymentStatus: finalPaymentStatus,
-    partialPayment: isPartial,
-    amountPaid: paidAmount,
-    amountDue: dueAmount
-  });
-
-  // ✅ Subscription logic
-  const existingSubscription = await Subscription.findOne({
-    customer: customerExists._id,
-    productType,
-    isActive: true
-  });
-
-  if (!existingSubscription) {
-    await Subscription.create({
-      customer: customerExists._id,
-      name: customerExists.name,
-      phoneNumber: customerExists.phoneNumber,
-      productType,
-      deliveryDays: "Daily",
-      assignedDeliveryBoy: customerExists.deliveryBoy?._id || null,
-      address: customerExists.address || "",
-      subscriptionPlan: plan.subscriptionPlan,
-      frequency: "Every Day",
-      price: plan.totalPrice,
-      startDate: new Date(),
-      status: "Active",
-      deliveryTime: plan.deliveryTime,
-      products: plan.products,
-      discount: plan.discount,
-      totalPrice: plan.totalPrice,
-      isActive: true,
-    });
-  }
-
-  // ✅ Notify delivery boy
-  if (customerExists.deliveryBoy) {
-    await Notification.create({
-      deliveryBoy: customerExists.deliveryBoy._id,
-      message: `New invoice (${invoiceId}) created for ${customerExists.name}.`
-    });
-  }
-
-  res.status(201).json({
-    success: true,
-    message: "Invoice created. Subscription ensured. Notification sent.",
-    invoice,
-    subscriptionPlanDetails: {
-      plan: plan.subscriptionPlan,
-      discount: plan.discount,
-      totalPrice: plan.totalPrice,
-      deliveryTime: plan.deliveryTime,
-      products: plan.products
-    },
-    remainingStock: product.stock
-  });
 });
 
 
