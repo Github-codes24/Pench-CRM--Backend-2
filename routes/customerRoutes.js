@@ -6,7 +6,7 @@ const {
   getCustomerById,
   updateCustomer,
   deleteCustomer,
-} = require("../controller/customerController");
+} = require("../controllers/customerController");
 
 const { isAuthenticatedUser } = require("../middlewares/auth");
 const upload = require("../utils/multer");

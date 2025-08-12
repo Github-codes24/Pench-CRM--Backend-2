@@ -9,7 +9,7 @@ const {
   updateSubscription,
   createSubscriptionPlan,
   deleteSubscription
-} = require("../controller/subscrptionController");
+} = require("../controllers/subscrptionController");
 
 // ➕ Create a new subscription
 router.post("/subscription", createSubscription);

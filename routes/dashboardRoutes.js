@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { getDashboardStats,getSalesReport,getWeeklyEarningsByDay,getDeliverySummary,getProductInsightThisWeek,getBottleTracking } = require("../controller/dashboardController");
+const { getDashboardStats,getSalesReport,getWeeklyEarningsByDay,getDeliverySummary,getProductInsightThisWeek,getBottleTracking } = require("../controllers/dashboardController");
 const { isAuthenticatedUser } = require("../middlewares/auth");
 
 router.get("/dashboard", isAuthenticatedUser, getDashboardStats);

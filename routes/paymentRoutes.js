@@ -10,7 +10,7 @@ viewPaymentDetails,
 getAllPendingPayments,
 getAllPartialPayments,
 submitRemainingPayment
-} = require("../controller/paymentController");
+} = require("../controllers/paymentController");
 
 const { isAuthenticatedDeliveryBoy } = require("../middlewares/auth");
 

@@ -2,7 +2,7 @@
 
 const express = require("express");
 const router = express.Router();
-const { getDeliveryManagement,gepaymentStatusDropdown,getDeliveryDetails,getpaymentModeDropdown,getDeliveryStatusDropdown,getAllProductsDropdown,getCustomerDropdown,getDeliveryBoyDropdown,updateInvoiceDetails } = require("../controller/deliveryManagemtnController");
+const { getDeliveryManagement,gepaymentStatusDropdown,getDeliveryDetails,getpaymentModeDropdown,getDeliveryStatusDropdown,getAllProductsDropdown,getCustomerDropdown,getDeliveryBoyDropdown,updateInvoiceDetails } = require("../controllers/deliveryManagemtnController");
 
 router.get("/delivery/management", getDeliveryManagement);
 router.get("/delivery/details/:id", getDeliveryDetails);

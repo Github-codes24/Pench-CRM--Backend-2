@@ -8,7 +8,7 @@ const {
   updateInvoice,
   deleteInvoice,
   sendMultipleInvoicesOnWhatsApp
-} = require("../controller/invoiceController");
+} = require("../controllers/invoiceController");
 
 const { isAuthenticatedUser } = require("../middlewares/auth");
 

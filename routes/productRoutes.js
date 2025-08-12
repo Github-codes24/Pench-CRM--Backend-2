@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const {createProduct , getAllProducts ,getLowStockProducts, getProductById , updateProduct ,assignProductToDeliveryBoy,getSellerProducts,getProductDashboardStats, deleteProduct,getTopSellingProducts,addProductQuantity,removeProductQuantity,getProductsBySellerId} = require("../controller/productController"); // 
+const {createProduct , getAllProducts ,getLowStockProducts, getProductById , updateProduct ,assignProductToDeliveryBoy,getSellerProducts,getProductDashboardStats, deleteProduct,getTopSellingProducts,addProductQuantity,removeProductQuantity,getProductsBySellerId} = require("../controllers/productController"); // 
 const upload = require("../utils/multer"); // Handles file uploads
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/auth"); // Optional if you use auth
 

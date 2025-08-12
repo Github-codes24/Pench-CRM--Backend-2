@@ -3,26 +3,38 @@ const router = express.Router();
 const {
   createLead,
   getAllLeads,
-  updateLead,
-  deleteLead,
+  getLeadById,
   addFollowUp,
+  updateLead,
+  markNotInterested,
   convertLeadToCustomer,
   markLeadNotInterested,getLeadById,getConvertedLeads,getLeadSummary,
   getScheduleForDate
 } = require("../controller/leadController");
 
+// Create a new lead
+router.post("/leads", createLead);
+
+// Get all leads (with pagination & filters)
 router.get("/leads", getAllLeads);
-router.get("/leadbyid/:id",getLeadById)
-router.post("/addleads", createLead);
-router.get("/leadsummary",getLeadSummary)
 
-router.post("/addfollowup/:id", addFollowUp);
-router.post("/convertedlead/:id/", convertLeadToCustomer);
-router.get("/seeconverted",getConvertedLeads)
-router.patch("/not-interested/:id/", markLeadNotInterested);
+// Get lead by ID
+router.get("/leads/:id", getLeadById);
 
-router.put("/updatelead/:id", updateLead);
-router.delete("/deletelead/:id", deleteLead);
+// Add follow-up to a lead
+router.post("/leads/:id/followup", addFollowUp);
+
+// Update lead
+router.put("/leads/:id", updateLead);
+
+// Mark lead as not interested
+router.patch("/leads/:id/not-interested", markNotInterested);
+
+// Convert lead to customer
+router.post("/leads/:id/convert", convertLeadToCustomer);
+
+// Get all converted leads
+router.get("/leads-converted", getConvertedLeads);
 
 // router to show order details to admin
 router.get("/schedule/:date", getScheduleForDate);

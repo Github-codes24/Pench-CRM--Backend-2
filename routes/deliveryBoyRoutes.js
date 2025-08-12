@@ -15,7 +15,7 @@ const {
   getDeliveryBoyLocation,
   markNotificationAsRead,
   updateshiftBoyDetails
-} = require("../controller/deliveryBoyController");
+} = require("../controllers/deliveryBoyController");
 
 const { isAuthenticatedUser, isAuthenticatedDeliveryBoy } = require("../middlewares/auth");
 

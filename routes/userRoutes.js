@@ -12,7 +12,7 @@ const {
   changePassword,
   forgotPassword,
   verifyOtpAndResetPassword
-} = require("../controller/userController"); // adjust the path if needed
+} = require("../controllers/userController"); // adjust the path if needed
 
 const { isAuthenticatedUser } = require("../middlewares/auth"); // Middleware to protect routes
 const upload = require("../utils/multer"); // Middleware for file upload, e.g., Multer with S3

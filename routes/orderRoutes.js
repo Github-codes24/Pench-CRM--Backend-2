@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { getCustomerOrders,getTotalSales,getOrderDetails,getCustomerSalesById,getMyAcceptedOrders,updateBottleReturnOrDelivery,getDeliveredOrders,getPendingOrders,getBottleReturnSummary,getAdminNotifications,getAllDeliveredInvoices,getAllPendingInvoices,getAllInvoicesWithSummary,getMyUnpaidOrders,acceptInvoiceAndPay,verifyInvoicePayment,getPendingPayments,acceptOrder,getAllOrderHistory } = require("../controller/orderController");
+const { getCustomerOrders,getTotalSales,getOrderDetails,getCustomerSalesById,getMyAcceptedOrders,updateBottleReturnOrDelivery,getDeliveredOrders,getPendingOrders,getBottleReturnSummary,getAdminNotifications,getAllDeliveredInvoices,getAllPendingInvoices,getAllInvoicesWithSummary,getMyUnpaidOrders,acceptInvoiceAndPay,verifyInvoicePayment,getPendingPayments,acceptOrder,getAllOrderHistory } = require("../controllers/orderController");
 const { isAuthenticatedDeliveryBoy } = require("../middlewares/auth");
 
 router.get("/orders/:customerId", getCustomerOrders);

@@ -10,6 +10,7 @@
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
+
   "dependencies": {
     "@aws-sdk/client-s3": "^3.842.0",
     "bcryptjs": "^3.0.2",
