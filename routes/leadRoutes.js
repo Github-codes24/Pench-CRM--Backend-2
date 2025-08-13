@@ -8,9 +8,9 @@ const {
   updateLead,
   markNotInterested,
   convertLeadToCustomer,
-  markLeadNotInterested,getLeadById,getConvertedLeads,getLeadSummary,
+  markLeadNotInterested,getConvertedLeads,getLeadSummary,
   getScheduleForDate
-} = require("../controller/leadController");
+} = require("../controllers/leadController");
 
 // Create a new lead
 router.post("/leads", createLead);
@@ -37,6 +37,6 @@ router.post("/leads/:id/convert", convertLeadToCustomer);
 router.get("/leads-converted", getConvertedLeads);
 
 // router to show order details to admin
-router.get("/schedule/:date", getScheduleForDate);
+// router.get("/schedule/:date", getScheduleForDate);
 
 module.exports = router;

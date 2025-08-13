@@ -4,21 +4,22 @@ const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const ErrorHandler = require("../utils/errorhandler");
 const Invoice = require("../models/invoiceModel"); // Import Invoice model
 const DeliveryBoy = require("../models/deliveryBoyModel"); // Import DeliveryBoy model
-exports.createProduct = catchAsyncErrors(async (req, res, next) => {
-    const {description, productType,stock, quantity, price,size } = req.body;
 
-    if (!description || !quantity || !price ) {
-        return next(new ErrorHandler("All fields are required", 400));
+// creating product, written by Dhruv Narayan Yadav, TL - Himanshu
+exports.createProduct = catchAsyncErrors(async (req, res, next) => {
+    const { productName,description, productSize,price, quantity, stock } = req.body;
+
+    if(!productName || !productSize || !quantity || !price ){
+      return next(new ErrorHandler("All fields are required", 400));
     }
 
     const productData = {
+        productName,
         description,
+        productSize,
+        price: Number(price),
         quantity,
         stock,
-        productType,
-        size,
-        price: Number(price),
-        user: req.user ? req.user._id : null,
         image: [],
     };
 
@@ -42,7 +43,7 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
 // Update Product
 exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
     const { id } = req.params;
-    const { name, description,productType, quantity, size, price, stock } = req.body;
+    const { productName, description, size, price, quantity,  stock } = req.body;
 
     const product = await Product.findById(id);
     if (!product) {
@@ -50,12 +51,12 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
     }
 
     // Update fields only if provided
-    if (name) product.name = name;
+    if (productName) product.productName = productName;
     if (description) product.description = description;
-    if( productType) product.productType = productType;
+    // if( productType) product.productType = productType;
     if (size) product.size = size;
-    if (quantity) product.quantity = quantity;
     if (price !== undefined) product.price = Number(price);
+    if (quantity) product.quantity = quantity;
     if (stock !== undefined) product.stock = Number(stock);
 
     // Handle updated image (optional)
@@ -72,7 +73,7 @@ exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
     });
 });
 
-// Add Product Quantity
+// Add Product Stock
 exports.addProductQuantity = catchAsyncErrors(async (req, res, next) => {
     const { productId } = req.params;
     let { quantity } = req.body;
@@ -93,12 +94,12 @@ exports.addProductQuantity = catchAsyncErrors(async (req, res, next) => {
 
     res.status(200).json({
         success: true,
-        message: `${quantity} units added successfully by user ${req.user._id}`,
+        message: `${quantity} units added successfully by user.}`,
         updatedStock: product.stock,
     });
 });
 
-// Remove Product Quantity
+// Remove Product Stock
 exports.removeProductQuantity = catchAsyncErrors(async (req, res, next) => {
     const { productId } = req.params;
     let { quantity } = req.body;
@@ -123,18 +124,19 @@ exports.removeProductQuantity = catchAsyncErrors(async (req, res, next) => {
 
     res.status(200).json({
         success: true,
-        message: `${quantity} units removed successfully by user ${req.user._id}`,
+        message: `${quantity} units removed successfully by user }`,   //${req.user._id
         updatedStock: product.stock,
     });
 });
 
+// get all products
 exports.getAllProducts = catchAsyncErrors(async (req, res, next) => {
-  const { productType } = req.query; // ✅ Get productType from query params
+  const { productName } = req.query; // ✅ Get productName from query params
 
   // Build filter object
   const filter = {};
-  if (productType) {
-    filter.productType = productType; // match exact productType
+  if (productName) {
+    filter.productName = productName; // match exact productType
   }
 
   // Fetch products with optional filter

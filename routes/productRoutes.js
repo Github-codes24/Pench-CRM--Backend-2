@@ -7,25 +7,25 @@ const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/auth"); 
 // Create product (with image upload, max 5 images)
 router.post(
   "/products",
-   isAuthenticatedUser,
+  //  isAuthenticatedUser,
   upload.array("image", 5),
   createProduct
 );
 
-router.put("/product/:productId/add-quantity",isAuthenticatedUser, addProductQuantity);
-router.put("/product/:productId/remove-quantity", isAuthenticatedUser, removeProductQuantity);
+router.put("/product/:productId/add-quantity",/*isAuthenticatedUser,*/ addProductQuantity);
+router.put("/product/:productId/remove-quantity",/*isAuthenticatedUser,*/ removeProductQuantity);
 
 
 // Get all products
 router.get("/products", getAllProducts);
 
 // Get single product by ID
-router.get("/products/:id",isAuthenticatedUser, getProductById);
+router.get("/products/:id",/*isAuthenticatedUser,*/ getProductById);
 
 // Update product by ID (with image upload)
 router.put(
   "/products/:id",
-  isAuthenticatedUser,
+ /*isAuthenticatedUser,*/
   upload.array("image", 5),
   updateProduct
 );
@@ -33,7 +33,7 @@ router.put(
 // Delete product by ID
 router.delete(
   "/products/:id",
-  isAuthenticatedUser,
+  /*isAuthenticatedUser,*/
   deleteProduct
 );
 
