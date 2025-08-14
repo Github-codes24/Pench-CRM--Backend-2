@@ -96,7 +96,7 @@ exports.logout = catchAsyncErrors(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: "Logged out successfully",
+    message: "Logged out successfullyy",
   });
 });
 
@@ -155,17 +155,25 @@ exports.updateUserProfile = catchAsyncErrors(async (req, res, next) => {
 
 // -------------------------- Delete User --------------------------
 exports.deleteUser = catchAsyncErrors(async (req, res, next) => {
-  const user = await User.findById(req.params.id);
+  const { id } = req.params;
 
+  // Validate ID format
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new ErrorHander("Invalid user ID", 400));
+  }
+
+  // Find the user
+  const user = await User.findById(id);
   if (!user) {
     return next(new ErrorHander("User not found", 404));
   }
 
-  await user.deleteOne();
+  // Delete the user
+  await User.findByIdAndDelete(id);
 
   res.status(200).json({
     success: true,
-    message: "User deleted successfully!",
+    message: "User deleted successfully",
   });
 });
 
