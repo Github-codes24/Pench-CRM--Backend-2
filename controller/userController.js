@@ -5,6 +5,7 @@ const sendToken = require("../utils/jwtToken");
 const Blacklist = require("../models/blacklistModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 const sendEmail = require("../utils/sendEmail");
 // Register
 
@@ -90,7 +91,6 @@ exports.logout = catchAsyncErrors(async (req, res, next) => {
   res.cookie("token", null, {
     expires: new Date(Date.now()),
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
     sameSite: "Strict",
   });
 
