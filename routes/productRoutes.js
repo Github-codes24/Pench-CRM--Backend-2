@@ -11,8 +11,8 @@ const {
   getProductDashboardStats,
   deleteProduct,
   getTopSellingProducts,
-  addProductQuantity,
-  removeProductQuantity,
+  addStockQuantity,
+  removeStockQuantity,
   getProductsBySellerId,
 } = require("../controller/productController"); //
 const upload = require("../utils/multer"); // Handles file uploads
