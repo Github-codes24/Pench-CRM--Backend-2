@@ -7,7 +7,7 @@ const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/auth"); 
 // Create product (with image upload, max 5 images)
 router.post(
   "/products",
-   isAuthenticatedUser,
+   // isAuthenticatedUser,
   upload.array("image", 5),
   createProduct
 );
@@ -17,7 +17,7 @@ router.put("/product/:productId/remove-quantity", isAuthenticatedUser, removePro
 
 
 // Get all products
-router.get("/products", getAllProducts);
+router.get("/get-all-products", getAllProducts);
 
 // Get single product by ID
 router.get("/products/:id",isAuthenticatedUser, getProductById);
