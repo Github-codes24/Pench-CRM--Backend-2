@@ -33,7 +33,6 @@ router.get("/get-all-products", getAllProducts);
 router.put(
   "/edit-product/:id",
  /*isAuthenticatedUser,*/
-  upload.array("image", 5),
   updateProduct
 );
 
