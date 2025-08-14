@@ -2,21 +2,15 @@ const ErrorHander = require("../utils/errorhandler");
 const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const User = require("../models/userModel");
 const sendToken = require("../utils/jwtToken");
+const Blacklist = require("../models/blacklistModel");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/sendEmail");
 // Register
 
 exports.registerUser = catchAsyncErrors(async (req, res, next) => {
-  const {
-    name,
-    email,
-    phoneNumber,
-    companyName,
-    gstNumber,
-    password,
-    address,
-    role,
-  } = req.body;
+  const { name, email, phoneNumber, gstNumber, password, address, role } =
+    req.body;
 
   if (!phoneNumber || !password) {
     return next(new ErrorHander("Phone number and password are required", 400));
@@ -33,7 +27,6 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
     phoneNumber,
     password,
     address,
-    companyName,
     gstNumber,
     role,
   });
@@ -81,10 +74,24 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
 });
 
 // Logout user
+
 exports.logout = catchAsyncErrors(async (req, res, next) => {
-  res.header("token", null, {
+  const token = req.headers.authorization?.split(" ")[1] || req.cookies?.token;
+
+  if (token) {
+    const decoded = jwt.decode(token);
+    await Blacklist.create({
+      token,
+      expiresAt: new Date(decoded.exp * 1000),
+    });
+  }
+
+  // Clear cookie for browsers
+  res.cookie("token", null, {
     expires: new Date(Date.now()),
     httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "Strict",
   });
 
   res.status(200).json({
@@ -92,17 +99,13 @@ exports.logout = catchAsyncErrors(async (req, res, next) => {
     message: "Logged out successfully",
   });
 });
-// Get Single User Details
-exports.getUserDetails = catchAsyncErrors(async (req, res, next) => {
-  const userId = req.user.id;
 
-  const user = await User.findById(userId);
+// Get single user by ID
+exports.getUserDetails = catchAsyncErrors(async (req, res, next) => {
+  const user = await User.findById(req.params.id);
 
   if (!user) {
-    return res.status(404).json({
-      success: false,
-      message: "User not found",
-    });
+    return next(new ErrorHander("User not found", 404));
   }
 
   res.status(200).json({
@@ -111,14 +114,14 @@ exports.getUserDetails = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-exports.getAllSellers = catchAsyncErrors(async (req, res, next) => {
-  // Adjust the field name 'role' and value 'seller' based on your schema
-  const sellers = await User.find();
+exports.getAllUser = catchAsyncErrors(async (req, res, next) => {
+  // If sellers are stored with role = "USER"
+  const users = await User.find({ role: "USER" });
 
   res.status(200).json({
     success: true,
-    sellers,
-    count: sellers.length,
+    User_count: users.length,
+    users,
   });
 });
 

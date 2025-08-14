@@ -5,7 +5,7 @@ const {
   loginUser,
   logout,
   getUserDetails,
-  getAllSellers,
+  getAllUser,
   updateUserProfile,
   deleteUser,
   registerUser,
@@ -28,10 +28,10 @@ router.post("/login", loginUser);
 router.get("/logout", logout);
 
 // @route   GET /api/v1/users/:id
-router.get("/get/userprofile", isAuthenticatedUser, getUserDetails);
+router.get("/userdetail/:id", isAuthenticatedUser, getUserDetails);
 
 // @route   GET /api/v1/sellers
-router.get("/users", isAuthenticatedUser, getAllSellers);
+router.get("/users", isAuthenticatedUser, getAllUser);
 
 // @route   PUT /api/v1/users/:id
 router.put(
