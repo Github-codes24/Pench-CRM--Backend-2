@@ -40,7 +40,7 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
 });
 
 
-// Update Product
+// Update Product Details
 exports.updateProduct = catchAsyncErrors(async (req, res, next) => {
     const { id } = req.params;
     const { productName, description, size, price, quantity,  stock } = req.body;

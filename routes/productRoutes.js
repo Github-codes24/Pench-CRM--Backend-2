@@ -17,7 +17,7 @@ router.put("/product/:productId/remove-quantity",/*isAuthenticatedUser,*/ remove
 
 
 // Get all products
-router.get("/products", getAllProducts);
+router.get("/get-all-products", getAllProducts);
 
 // Get single product by ID
 router.get("/products/:id",/*isAuthenticatedUser,*/ getProductById);
