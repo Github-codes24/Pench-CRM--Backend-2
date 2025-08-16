@@ -1,390 +1,776 @@
-const DeliveryBoy = require("../models/deliveryBoyModel");
-const ErrorHandler = require("../utils/errorhandler");
+const Invoice = require("../models/invoiceModel");
+const Product = require("../models/productModel");
 const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
-const Customer = require("../models/customerModel");
-const Notification = require("../models/notificationModel")
-const sendEmail = require("../utils/sendEmail");
-const sendToken = require("../utils/jwtToken"); // ⬅️ You can reuse your token util
-const mongoose = require("mongoose");
-// ➕ Create a new delivery boy
-exports.createDeliveryBoy = catchAsyncErrors(async (req, res, next) => {
-  const { name, email, password, phoneNumber, area, productType, customerIds = [] } = req.body;
 
-  if (!name || !email || !password|| !phoneNumber || !area || !productType || productType.length === 0) {
-    return next(new ErrorHandler("All fields are required", 400));
-  }
+// exports.getDashboardStats = catchAsyncErrors(async (req, res, next) => {
+//   const allInvoices = await Invoice.find();
 
-  const existing = await DeliveryBoy.findOne({ email });
-  if (existing) {
-    return next(new ErrorHandler("Delivery boy with this email already exists", 409));
-  }
+//   // Total Sales (for Paid invoices)
+//   const paidInvoices = allInvoices.filter(inv => inv.paymentStatus === "Paid");
+//   const totalSales = paidInvoices.reduce((sum, inv) => sum + inv.price, 0);
 
-  // Create delivery boy
-  const deliveryBoy = await DeliveryBoy.create({
-    name,
-    email,
-    password,
-    phoneNumber,
-    area,
-    productType,
-    assignedCustomers: customerIds,
-  });
+//   // Subscription Counts
+//   const subscriptionCounts = {
+//     Daily: 0,
+//     Weekly: 0,
+//     Monthly: 0,
+//     totalSubscriptions: 0
+//   };
 
-  // Update each customer with this delivery boy
-  await Customer.updateMany(
-    { _id: { $in: customerIds } },
-    { deliveryBoy: deliveryBoy._id }
+//   allInvoices.forEach(inv => {
+//     if (inv.subscriptionPlan) {
+//       if (subscriptionCounts[inv.subscriptionPlan] !== undefined) {
+//         subscriptionCounts[inv.subscriptionPlan]++;
+//       }
+//       subscriptionCounts.totalSubscriptions++;
+//     }
+//   });
+
+//   // Low stock alert
+//   const lowStockThreshold = 10;
+//   const lowStockProducts = await Product.find({ stock: { $lte: lowStockThreshold } })
+//     .select("productType stock");
+
+//   // Pending Payments
+//   const unpaidInvoices = allInvoices.filter(inv => inv.paymentStatus === "Unpaid");
+//   const totalPendingAmount = unpaidInvoices.reduce((sum, inv) => sum + inv.price, 0);
+//   const totalPendingCount = unpaidInvoices.length;
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Dashboard stats fetched successfully",
+//     stats: {
+//       totalSales,
+//       subscriptionCounts,
+//       lowStockAlerts: lowStockProducts,
+//       pendingPayments: {
+//         totalPendingCount,
+//         totalPendingAmount
+//       }
+//     }
+//   });
+// });
+
+exports.getDashboardStats = catchAsyncErrors(async (req, res, next) => {
+  const allInvoices = await Invoice.find();
+
+  const paidInvoices = allInvoices.filter(
+    (inv) => inv.paymentStatus === "Paid"
+  );
+  const totalSales = paidInvoices.reduce(
+    (sum, inv) => sum + (inv.price || 0),
+    0
   );
 
-  res.status(201).json({
-    success: true,
-    message: "Delivery boy created and customers assigned successfully",
-    deliveryBoy,
+  const subscriptionCounts = {
+    Daily: 0,
+    Weekly: 0,
+    Monthly: 0,
+    totalSubscriptions: 0,
+  };
+
+  allInvoices.forEach((inv) => {
+    const plan = inv.subscriptionPlan;
+    if (plan && subscriptionCounts[plan] !== undefined) {
+      subscriptionCounts[plan]++;
+      subscriptionCounts.totalSubscriptions++;
+    }
   });
-});
 
-exports.updateshiftBoyDetails = catchAsyncErrors(async (req, res, next) => {
-  const { deliveryBoyId, area, productType, customerIds = [] } = req.body;
+  // 🛠 Fix: Explicitly filter for stock that exists and is a number <= 10
+  const lowStockProducts = await Product.find({
+    stock: { $exists: true, $ne: null, $lte: 10 },
+  })
+    .select("productType stock size")
+    .sort({ stock: 1 });
 
-  if (!deliveryBoyId || !area || !productType || productType.length === 0) {
-    return next(new ErrorHandler("Delivery boy ID, area, and productType are required", 400));
-  }
-
-  const deliveryBoy = await DeliveryBoy.findById(deliveryBoyId);
-  if (!deliveryBoy) {
-    return next(new ErrorHandler("Delivery boy not found", 404));
-  }
-
-  // Update area and product type
-  deliveryBoy.area = area;
-  deliveryBoy.productType = productType;
-
-  // Update customer assignments if provided
-  if (customerIds.length > 0) {
-    deliveryBoy.assignedCustomers = customerIds;
-
-    // Update each customer with this delivery boy ID
-    await Customer.updateMany(
-      { _id: { $in: customerIds } },
-      { deliveryBoy: deliveryBoy._id }
-    );
-  }
-
-  await deliveryBoy.save();
+  const unpaidInvoices = allInvoices.filter(
+    (inv) => inv.paymentStatus === "Unpaid"
+  );
+  const totalPendingAmount = unpaidInvoices.reduce(
+    (sum, inv) => sum + (inv.price || 0),
+    0
+  );
+  const totalPendingCount = unpaidInvoices.length;
 
   res.status(200).json({
     success: true,
-    message: "Delivery boy updated and customers reassigned successfully",
-    deliveryBoy,
+    message: "Dashboard stats fetched successfully",
+    stats: {
+      totalSales,
+      subscriptionCounts,
+      pendingPayments: {
+        totalPendingCount,
+        totalPendingAmount,
+      },
+      lowStockAlerts: {
+        count: lowStockProducts.length,
+        products: lowStockProducts,
+      },
+    },
   });
 });
 
-
-// 🔐 Login Delivery Boy
-exports.loginDeliveryBoy = catchAsyncErrors(async (req, res, next) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    return next(new ErrorHandler("Please enter email and password", 400));
-  }
-
-  const deliveryBoy = await DeliveryBoy.findOne({ email }).select("+password");
-
-  if (!deliveryBoy) {
-    return next(new ErrorHandler("Invalid email or password", 401));
-  }
-
-  const isPasswordMatched = await deliveryBoy.comparePassword(password);
-
-  if (!isPasswordMatched) {
-    return next(new ErrorHandler("Invalid email or password", 401));
-  }
-
-  sendToken(deliveryBoy, 200, res); // ⬅️ You can reuse your token util
-});
-
-
-
-// 📋 Get all delivery boys
-exports.getAllDeliveryBoys = catchAsyncErrors(async (req, res, next) => {
-  const deliveryBoys = await DeliveryBoy.find().populate("assignedCustomers", "name phoneNumber address");
-
-  res.status(200).json({
-    success: true,
-    count: deliveryBoys.length,
-    deliveryBoys,
-  });
-});
-
-// 🔍 Get delivery boy by ID
-exports.getDeliveryBoyById = catchAsyncErrors(async (req, res, next) => {
-  const { id } = req.params;
-
-  const deliveryBoy = await DeliveryBoy.findById(id).populate("assignedCustomers", "name phoneNumber address");
-
-  if (!deliveryBoy) {
-    return next(new ErrorHandler("Delivery boy not found", 404));
-  }
-
-  res.status(200).json({
-    success: true,
-    deliveryBoy,
-  });
-});
-
-// ✏️ Update delivery boy
-const bcrypt = require("bcryptjs");
-
-exports.updateDeliveryBoy = catchAsyncErrors(async (req, res, next) => {
-  const { id } = req.params;
-
-  // ✅ Validate MongoDB ObjectId
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return next(new ErrorHandler("Invalid ID format", 400));
-  }
-
-  const { customerIds, password, ...rest } = req.body;
-
-  // ✅ Check if delivery boy exists
-  let deliveryBoy = await DeliveryBoy.findById(id);
-  if (!deliveryBoy) {
-    return next(new ErrorHandler("Delivery boy not found", 404));
-  }
-
-  // ✅ Handle assignedCustomers if customerIds are passed
-  if (customerIds && Array.isArray(customerIds)) {
-    rest.assignedCustomers = customerIds;
-
-    // Update each customer with deliveryBoy ID
-    await Customer.updateMany(
-      { _id: { $in: customerIds } },
-      { deliveryBoy: deliveryBoy._id }
-    );
-  }
-
-  // ✅ If password is updated, hash it
-  if (password && password.length >= 6) {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    rest.password = hashedPassword;
-  }
-
-  // ✅ Perform update
-  deliveryBoy = await DeliveryBoy.findByIdAndUpdate(id, rest, {
-    new: true,
-    runValidators: true,
-  });
-
-  res.status(200).json({
-    success: true,
-    message: "Delivery boy updated successfully",
-    deliveryBoy,
-  });
-});
-
-
-// Forgot Password for DeliveryBoy
-exports.deliveryBoyForgotPassword = catchAsyncErrors(async (req, res, next) => {
-  const deliveryBoy = await DeliveryBoy.findOne({ email: req.body.email });
-
-  if (!deliveryBoy) {
-    return next(new ErrorHandler("Delivery boy not found", 404));
-  }
-
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  deliveryBoy.otp = otp;
-  deliveryBoy.otpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-  await deliveryBoy.save({ validateBeforeSave: false });
-
-  const message = `Your password reset OTP is: ${otp}. It is valid for 10 minutes.`;
-
-  try {
-    await sendEmail({
-      email: deliveryBoy.email,
-      subject: "Delivery Boy Password Reset OTP",
-      message,
-    });
-
-    res.status(200).json({
-      success: true,
-      message: `OTP sent to ${deliveryBoy.email} successfully`,
-      otp: otp, 
-    });
-  } catch (error) {
-    console.error("Email send error:", error);
-    deliveryBoy.otp = undefined;
-    deliveryBoy.otpExpire = undefined;
-    await deliveryBoy.save({ validateBeforeSave: false });
-
-    return next(new ErrorHandler("Failed to send OTP email", 500));
-  }
-});
-
-// controllers/deliveryBoyController.js
-
-exports.verifyOtpAndResetDeliveryBoyPassword = catchAsyncErrors(async (req, res, next) => {
-  const { otp, password, confirmPassword } = req.body;
-
-  if (!otp || !password || !confirmPassword) {
-    return next(new ErrorHandler("All fields are required", 400));
-  }
-
-  const deliveryBoy = await DeliveryBoy.findOne({
-    otp,
-    otpExpire: { $gt: Date.now() },
-  });
-
-  if (!deliveryBoy) {
-    return next(new ErrorHandler("Invalid or expired OTP", 400));
-  }
-
-  if (password !== confirmPassword) {
-    return next(new ErrorHandler("Passwords do not match", 400));
-  }
-
-  deliveryBoy.password = password;
-  deliveryBoy.otp = undefined;
-  deliveryBoy.otpExpire = undefined;
-
-  await deliveryBoy.save();
-
-  res.status(200).json({
-    success: true,
-    message: "Password reset successful",
-  });
-});
-
-
-// ❌ Delete delivery boy
-exports.deleteDeliveryBoy = catchAsyncErrors(async (req, res, next) => {
-  const deliveryBoy = await DeliveryBoy.findById(req.params.id);
-  if (!deliveryBoy) {
-    return next(new ErrorHandler("Delivery boy not found", 404));
-  }
-
-  await deliveryBoy.remove();
-
-  res.status(200).json({
-    success: true,
-    message: "Delivery boy deleted successfully",
-  });
-});
-
-
-// controllers/notificationController.js
-// controllers/notificationController.js
-exports.getDeliveryBoyNotifications = catchAsyncErrors(async (req, res, next) => {
-  const deliveryBoyId = req.deliveryBoy?._id;
-
-  if (!deliveryBoyId) {
-    return next(new ErrorHandler("Not authorized. Delivery boy not found", 401));
-  }
-
-  const notifications = await Notification.find({ deliveryBoy: deliveryBoyId }).sort({ createdAt: -1 });
-
-  res.status(200).json({
-    success: true,
-    notifications
-  });
-});
-
-
-// controllers/notificationController.js
-exports.markNotificationAsRead = catchAsyncErrors(async (req, res, next) => {
-  const { notificationId } = req.params;
-
-  const notification = await Notification.findById(notificationId);
-  if (!notification) {
-    return next(new ErrorHandler("Notification not found", 404));
-  }
-
-  notification.read = true;
-  await notification.save();
-
-  res.status(200).json({
-    success: true,
-    message: "Notification marked as read",
-    notification,
-  });
-});
-
-
-exports.getUnreadNotifications = catchAsyncErrors(async (req, res, next) => {
-  const deliveryBoyId = req.deliveryBoy?._id;
-
-  if (!deliveryBoyId) {
-    return next(new ErrorHandler("Unauthorized", 401));
-  }
-
-  const notifications = await Notification.find({ deliveryBoy: deliveryBoyId, read: false })
+exports.getSalesReport = catchAsyncErrors(async (req, res, next) => {
+  const sales = await Invoice.find({
+    paymentStatus: { $in: ["Paid", "Unpaid"] },
+  })
+    .populate({
+      path: "customer",
+      select: "name",
+    })
     .sort({ createdAt: -1 });
 
+  const salesList = sales.map((inv) => ({
+    _id: inv._id,
+    customerName: inv.customer?.name || "N/A",
+    date: inv.createdAt,
+    productType: inv.productType,
+    productQuantity: inv.productQuantity,
+    totalAmount: inv.price,
+    // payment: inv.payment || "N/A",
+    payment: inv.paymentMode || "N/A",
+    paymentStatus: inv.paymentStatus,
+  }));
+
   res.status(200).json({
     success: true,
-    count: notifications.length,
-    notifications
+    totalSales: salesList.length,
+    sales: salesList,
   });
 });
 
+// Helper: Get start and end date of the current week (Monday to Sunday)
+const getCurrentWeekDates = () => {
+  const today = new Date();
+  const day = today.getDay(); // 0 = Sunday, 1 = Monday...
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((day + 6) % 7));
+  monday.setHours(0, 0, 0, 0);
 
-
-// exports.getDeliveryBoyLocation = async (req, res) => {
-//   try {
-//     const { deliveryBoyId } = req.body;
-
-//     if (!deliveryBoyId) {
-//       return res.status(400).json({ success: false, message: "Delivery boy ID is required in the request body" });
-//     }
-
-//     const deliveryBoy = await DeliveryBoy.findById(deliveryBoyId).select("area name email phoneNumber");
-
-//     if (!deliveryBoy) {
-//       return res.status(404).json({ success: false, message: "Delivery boy not found" });
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       area: deliveryBoy.area,
-//       name: deliveryBoy.name,
-//       email: deliveryBoy.email,
-//       phoneNumber:deliveryBoy.phoneNumber
-//     });
-//   } catch (error) {
-//     console.error("Error fetching location:", error);
-//     res.status(500).json({ success: false, message: "Server error" });
-//   }
-// };
-
-
-exports.getDeliveryBoyLocation = async (req, res) => {
-  try {
-    const { deliveryBoyId } = req.params; // ✅ Use params instead of body
-
-    if (!deliveryBoyId) {
-      return res.status(400).json({
-        success: false,
-        message: "Delivery boy ID is required in the request parameters"
-      });
-    }
-
-    const deliveryBoy = await DeliveryBoy.findById(deliveryBoyId).select("area name email phoneNumber");
-
-    if (!deliveryBoy) {
-      return res.status(404).json({
-        success: false,
-        message: "Delivery boy not found"
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      area: deliveryBoy.area,
-      name: deliveryBoy.name,
-      email: deliveryBoy.email,
-      phoneNumber: deliveryBoy.phoneNumber
-    });
-  } catch (error) {
-    console.error("Error fetching location:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+  const daysOfWeek = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    daysOfWeek.push(new Date(d));
   }
+
+  return daysOfWeek;
 };
+
+// exports.getWeeklyEarningsByDay = catchAsyncErrors(async (req, res, next) => {
+//   const weekDays = getCurrentWeekDates();
+
+//   const earningsByDay = {
+//     Monday: 0,
+//     Tuesday: 0,
+//     Wednesday: 0,
+//     Thursday: 0,
+//     Friday: 0,
+//     Saturday: 0,
+//     Sunday: 0
+//   };
+
+//   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+//   // Fetch all invoices for the current week
+//   const startDate = weekDays[0];
+//   const endDate = new Date(weekDays[6]);
+//   endDate.setHours(23, 59, 59, 999);
+
+//   const invoices = await Invoice.find({
+//     createdAt: { $gte: startDate, $lte: endDate },
+//     paymentStatus: "Paid"
+//   });
+
+//   for (const inv of invoices) {
+//     const invDate = new Date(inv.createdAt);
+//     const dayName = dayNames[invDate.getDay()];
+//     if (earningsByDay[dayName] !== undefined) {
+//       earningsByDay[dayName] += inv.price;
+//     }
+//   }
+
+//   const totalEarnings = Object.values(earningsByDay).reduce((sum, val) => sum + val, 0);
+
+//   res.status(200).json({
+//     success: true,
+//     week: earningsByDay,
+//     totalEarnings
+//   });
+// });
+
+exports.getWeeklyEarningsByDay = catchAsyncErrors(async (req, res, next) => {
+  const { type = "weekly" } = req.query;
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  let startDate, endDate;
+  let earningsData = {};
+  let label = "";
+  const invoicesFilter = { paymentStatus: "Paid" };
+
+  if (type === "weekly") {
+    const dayIndex = today.getDay();
+    const mondayOffset = (dayIndex + 6) % 7;
+    startDate = new Date(today);
+    startDate.setDate(today.getDate() - mondayOffset);
+    endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+
+    endDate.setHours(23, 59, 59, 999);
+    invoicesFilter.createdAt = { $gte: startDate, $lte: endDate };
+
+    const dayNames = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const earningsByDay = {
+      Monday: 0,
+      Tuesday: 0,
+      Wednesday: 0,
+      Thursday: 0,
+      Friday: 0,
+      Saturday: 0,
+      Sunday: 0,
+    };
+
+    const invoices = await Invoice.find(invoicesFilter);
+    for (const inv of invoices) {
+      const day = dayNames[new Date(inv.createdAt).getDay()];
+      if (earningsByDay[day] !== undefined) {
+        earningsByDay[day] += inv.price;
+      }
+    }
+
+    earningsData = earningsByDay;
+    label = "Daily";
+  } else if (type === "monthly") {
+    startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    endDate.setHours(23, 59, 59, 999);
+    invoicesFilter.createdAt = { $gte: startDate, $lte: endDate };
+
+    const invoices = await Invoice.find(invoicesFilter);
+
+    const earningsByWeek = {
+      Week1: 0,
+      Week2: 0,
+      Week3: 0,
+      Week4: 0,
+      Week5: 0,
+    };
+
+    for (const inv of invoices) {
+      const date = new Date(inv.createdAt);
+      const day = date.getDate();
+      let week = Math.ceil(day / 7);
+      if (week > 5) week = 5;
+      earningsByWeek[`Week${week}`] += inv.price;
+    }
+
+    earningsData = earningsByWeek;
+    label = "Weekly";
+  } else if (type === "yearly") {
+    startDate = new Date(today.getFullYear(), 0, 1);
+    endDate = new Date(today.getFullYear(), 11, 31);
+    endDate.setHours(23, 59, 59, 999);
+    invoicesFilter.createdAt = { $gte: startDate, $lte: endDate };
+
+    const invoices = await Invoice.find(invoicesFilter);
+
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+
+    const earningsByMonth = {};
+    monthNames.forEach((month) => (earningsByMonth[month] = 0));
+
+    for (const inv of invoices) {
+      const monthIndex = new Date(inv.createdAt).getMonth();
+      const month = monthNames[monthIndex];
+      earningsByMonth[month] += inv.price;
+    }
+
+    earningsData = earningsByMonth;
+    label = "Monthly";
+  } else {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid type. Use 'weekly', 'monthly', or 'yearly'.",
+    });
+  }
+
+  const totalEarnings = Object.values(earningsData).reduce(
+    (sum, val) => sum + val,
+    0
+  );
+
+  res.status(200).json({
+    success: true,
+    type,
+    label,
+    range: { from: startDate, to: endDate },
+    data: earningsData,
+    totalEarnings,
+  });
+});
+
+// exports.getDeliverySummary = catchAsyncErrors(async (req, res, next) => {
+//   const invoices = await Invoice.find({ status: { $in: ["Delivered", "Accepted", "Pending"] } });
+
+//   let summaryByQty = {
+//     "1L": { delivered: 0, returned: 0 },
+//     "0.5L": { delivered: 0, returned: 0 }
+//   };
+
+//   invoices.forEach(inv => {
+//     const qty = inv.productQuantity?.toString().trim();
+//     const returned = Number(inv.bottleReturned) || 0;
+
+//     // Count delivered by size
+//     if (qty === "1" || qty === "1L") {
+//       summaryByQty["1L"].delivered += 1;
+//       summaryByQty["1L"].returned += returned;
+//     } else if (qty === "0.5" || qty === "0.5L") {
+//       summaryByQty["0.5L"].delivered += 1;
+//       summaryByQty["0.5L"].returned += returned;
+//     }
+//   });
+
+//   const totalDeliveredBottles = summaryByQty["1L"].delivered + summaryByQty["0.5L"].delivered;
+//   const totalReturnedBottles = summaryByQty["1L"].returned + summaryByQty["0.5L"].returned;
+
+//   res.status(200).json({
+//     success: true,
+//     summary: {
+//       totalDeliveredBottles,
+//       totalReturnedBottles,
+//       byQuantity: {
+//         "1L": {
+//           delivered: summaryByQty["1L"].delivered,
+//           returned: summaryByQty["1L"].returned
+//         },
+//         "0.5L": {
+//           delivered: summaryByQty["0.5L"].delivered,
+//           returned: summaryByQty["0.5L"].returned
+//         }
+//       }
+//     }
+//   });
+// });
+
+const moment = require("moment");
+
+exports.getDeliverySummary = catchAsyncErrors(async (req, res, next) => {
+  const { filter } = req.query;
+
+  let startDate;
+
+  // Determine date range based on filter
+  if (filter === "daily") {
+    startDate = moment().startOf("day");
+  } else if (filter === "weekly") {
+    startDate = moment().startOf("week");
+  } else if (filter === "monthly") {
+    startDate = moment().startOf("month");
+  }
+
+  const query = {
+    status: { $in: ["Delivered", "Accepted", "Pending"] },
+  };
+
+  if (startDate) {
+    query.createdAt = { $gte: startDate.toDate() };
+  }
+
+  const invoices = await Invoice.find(query);
+
+  let summaryByQty = {
+    "1L": { delivered: 0, returned: 0 },
+    "0.5L": { delivered: 0, returned: 0 },
+  };
+
+  invoices.forEach((inv) => {
+    const qty = inv.productQuantity?.toString().trim();
+    const returned = Number(inv.bottleReturned) || 0;
+
+    if (qty === "1" || qty === "1L") {
+      summaryByQty["1L"].delivered += 1;
+      summaryByQty["1L"].returned += returned;
+    } else if (qty === "0.5" || qty === "0.5L") {
+      summaryByQty["0.5L"].delivered += 1;
+      summaryByQty["0.5L"].returned += returned;
+    }
+  });
+
+  const totalDeliveredBottles =
+    summaryByQty["1L"].delivered + summaryByQty["0.5L"].delivered;
+  const totalReturnedBottles =
+    summaryByQty["1L"].returned + summaryByQty["0.5L"].returned;
+
+  res.status(200).json({
+    success: true,
+    filter: filter || "all",
+    summary: {
+      totalDeliveredBottles,
+      totalReturnedBottles,
+      byQuantity: summaryByQty,
+    },
+  });
+});
+
+function getStartAndEndOfWeek() {
+  const now = new Date();
+  const day = now.getDay(); // 0 = Sunday
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+
+  return { monday, sunday };
+}
+
+// Utility to get current week's Monday to Sunday
+
+// exports.getProductInsightThisWeek = catchAsyncErrors(async (req, res, next) => {
+//   const { monday, sunday } = getStartAndEndOfWeek();
+
+//   // Fetch all delivered invoices in the week
+//   const invoices = await Invoice.find({
+//     status: "Delivered",
+//     createdAt: { $gte: monday, $lte: sunday }
+//   });
+
+//   const productMap = {};
+//   const todayMap = {};
+//   let totalDelivered = 0;
+
+//   // Count deliveries
+//   invoices.forEach(inv => {
+//     const type = inv.productType;
+
+//     productMap[type] = (productMap[type] || 0) + 1;
+
+//     // Today tracking
+//     const created = new Date(inv.createdAt);
+//     const isToday = created.toDateString() === new Date().toDateString();
+//     if (isToday) {
+//       todayMap[type] = (todayMap[type] || 0) + 1;
+//     }
+
+//     totalDelivered += 1;
+//   });
+
+//   // Get all product types from Product collection
+//   const allProducts = await Product.find({}, "productType");
+//   const allProductTypes = [...new Set(allProducts.map(p => p.productType))];
+
+//   // Fill 0 for products not sold this week
+//   allProductTypes.forEach(type => {
+//     if (!productMap[type]) productMap[type] = 0;
+//   });
+
+//   const productInsights = Object.entries(productMap)
+//     .map(([type, count]) => ({ productType: type, deliveredCount: count }))
+//     .sort((a, b) => b.deliveredCount - a.deliveredCount);
+
+//   const topSelling = productInsights[0] || {};
+//   const leastSelling = productInsights
+//     .filter(p => p.deliveredCount === 0)[0] || productInsights[productInsights.length - 1] || {};
+
+//   const productOfDay = Object.entries(todayMap)
+//     .sort((a, b) => b[1] - a[1])
+//     .map(([type, count]) => ({ productType: type, deliveredCount: count }))[0] || {};
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Product insights fetched successfully",
+//     week: {
+//       from: monday.toISOString().split("T")[0],
+//       to: sunday.toISOString().split("T")[0]
+//     },
+//     totalDelivered: ${totalDelivered} unit,
+//     productOfDay: productOfDay.productType || "N/A",
+//     topSelling: topSelling.productType || "N/A",
+//     lowestProductSale: leastSelling.productType || "N/A",
+//     productInsights
+//   });
+// });
+
+exports.getProductInsightThisWeek = catchAsyncErrors(async (req, res, next) => {
+  // ── Query params ───────────────────────────────────────────────
+  const { productType, range = "week" } = req.query;
+  const now = new Date();
+
+  // ── Date range selection: week | day | month ───────────────────
+  let from, to;
+  const rng = String(range).toLowerCase();
+
+  if (rng === "day" || rng === "daily") {
+    // Today 00:00:00.000 → 23:59:59.999
+    from = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+    to = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23,
+      59,
+      59,
+      999
+    );
+  } else if (rng === "month" || rng === "monthly") {
+    // First day of this month → Last millisecond of this month
+    from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  } else {
+    // Default: current week (uses existing helper if you have it)
+    const { monday, sunday } = getStartAndEndOfWeek();
+    from = monday;
+    to = sunday;
+  }
+
+  // ── Build invoice filter ────────────────────────────────────────
+  const invFilter = {
+    status: "Delivered",
+    createdAt: { $gte: from, $lte: to },
+  };
+  if (productType) invFilter.productType = productType;
+
+  // Fetch all delivered invoices in the period (+ optional productType)
+  const invoices = await Invoice.find(invFilter);
+
+  const productMap = {};
+  const todayMap = {};
+  let totalDelivered = 0;
+
+  // Count deliveries
+  invoices.forEach((inv) => {
+    const type = inv.productType;
+    productMap[type] = (productMap[type] || 0) + 1;
+
+    // Track today's product of the day (independent of selected range)
+    const created = new Date(inv.createdAt);
+    const isToday = created.toDateString() === new Date().toDateString();
+    if (isToday) {
+      todayMap[type] = (todayMap[type] || 0) + 1;
+    }
+
+    totalDelivered += 1;
+  });
+
+  // Get all product types (limit to selected productType if provided)
+  let allProductTypes;
+  if (productType) {
+    allProductTypes = [productType];
+  } else {
+    const allProducts = await Product.find({}, "productType");
+    allProductTypes = [...new Set(allProducts.map((p) => p.productType))];
+  }
+
+  // Fill 0 for products not sold in the selected period
+  allProductTypes.forEach((type) => {
+    if (!productMap[type]) productMap[type] = 0;
+  });
+
+  const productInsights = Object.entries(productMap)
+    .map(([type, count]) => ({ productType: type, deliveredCount: count }))
+    .sort((a, b) => b.deliveredCount - a.deliveredCount);
+
+  const topSelling = productInsights[0] || {};
+  const leastSelling =
+    productInsights.filter((p) => p.deliveredCount === 0)[0] ||
+    productInsights[productInsights.length - 1] ||
+    {};
+
+  const productOfDay =
+    Object.entries(todayMap)
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, count]) => ({
+        productType: type,
+        deliveredCount: count,
+      }))[0] || {};
+
+  res.status(200).json({
+    success: true,
+    message: "Product insights fetched successfully",
+    period: rng === "daily" ? "day" : rng === "monthly" ? "month" : "week",
+    filters: {
+      productType: productType || "All",
+    },
+    range: {
+      from: from.toISOString().split("T")[0],
+      to: to.toISOString().split("T")[0],
+    },
+    totalDelivered: `${totalDelivered} units`,
+    productOfDay: productOfDay.productType || "N/A",
+    topSelling: topSelling.productType || "N/A",
+    lowestProductSale: leastSelling.productType || "N/A",
+    productInsights,
+  });
+});
+
+// exports.getBottleTracking = catchAsyncErrors(async (req, res, next) => {
+//   const { startDate, endDate } = req.query;
+
+//   const start = startDate ? new Date(startDate) : new Date("2000-01-01");
+//   const end = endDate ? new Date(endDate) : new Date();
+//   end.setHours(23, 59, 59, 999);
+
+//   // Fetch all invoices within the date range (no filter on status or bottleIssued)
+//   const invoices = await Invoice.find({
+//     invoiceDate: { $gte: start, $lte: end },
+//   });
+
+//   let totalInvoices = invoices.length;
+//   let totalBottles = 0;
+//   let totalReturnedBottles = 0;
+
+//   const byQuantity = {
+//     "500ml": { issued: 0, returned: 0 },
+//     "1L": { issued: 0, returned: 0 },
+//     "2L": { issued: 0, returned: 0 },
+//   };
+
+//   const tracking = [];
+
+//   invoices.forEach(inv => {
+//     const qtyRaw = inv.productQuantity?.toString().trim().toLowerCase();
+//     let size = "";
+
+//     if (["0.5", "500ml", "1/2"].includes(qtyRaw)) size = "500ml";
+//     else if (["1", "1l", "1ltr"].includes(qtyRaw)) size = "1L";
+//     else if (["2", "2l", "2ltr"].includes(qtyRaw)) size = "2L";
+//     else size = "Unknown";
+
+//     // Count total issued bottles (if productQuantity is valid)
+//     if (size !== "Unknown") {
+//       byQuantity[size].issued += 1;
+//       totalBottles += 1;
+//     }
+
+//     const returned = inv.bottleReturnedYesNo === true;
+
+//     if (returned && size !== "Unknown") {
+//       byQuantity[size].returned += 1;
+//       totalReturnedBottles += 1;
+//     }
+
+//     tracking.push({
+//       customerName: inv.customerName || "N/A",
+//       productType: inv.productType || "N/A",
+//       productQuantity: size,
+//       invoiceDate: inv.invoiceDate?.toISOString().split("T")[0] || "N/A",
+//       bottleReturn: returned ? "Yes" : "No",
+//       status: inv.status || "N/A"
+//     });
+//   });
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Bottle tracking and summary fetched successfully",
+//     summary: {
+//       totalInvoices,
+//       totalBottles,
+//       totalReturnedBottles,
+//       byQuantity,
+//     },
+//     tracking,
+//   });
+// });
+
+exports.getBottleTracking = catchAsyncErrors(async (req, res, next) => {
+  const { from, to } = req.query;
+
+  const start = from ? new Date(from) : new Date("2000-01-01");
+  const end = to ? new Date(to) : new Date();
+  end.setHours(23, 59, 59, 999); // include entire end day
+
+  const invoices = await Invoice.find({
+    invoiceDate: { $gte: start, $lte: end },
+  });
+
+  let totalInvoices = invoices.length;
+  let totalBottles = 0;
+  let totalReturnedBottles = 0;
+
+  const byQuantity = {
+    "500ml": { issued: 0, returned: 0 },
+    "1L": { issued: 0, returned: 0 },
+    "2L": { issued: 0, returned: 0 },
+  };
+
+  const tracking = [];
+
+  invoices.forEach((inv) => {
+    const qtyRaw = inv.productQuantity?.toString().trim().toLowerCase();
+    let size = "";
+
+    if (["0.5", "500ml", "1/2"].includes(qtyRaw)) size = "500ml";
+    else if (["1", "1l", "1ltr"].includes(qtyRaw)) size = "1L";
+    else if (["2", "2l", "2ltr"].includes(qtyRaw)) size = "2L";
+    else size = "Unknown";
+
+    if (size !== "Unknown") {
+      byQuantity[size].issued += 1;
+      totalBottles += 1;
+    }
+
+    const returned = inv.bottleReturnedYesNo === true;
+
+    if (returned && size !== "Unknown") {
+      byQuantity[size].returned += 1;
+      totalReturnedBottles += 1;
+    }
+
+    tracking.push({
+      customerName: inv.customerName || "N/A",
+      productType: inv.productType || "N/A",
+      productQuantity: size,
+      invoiceDate: inv.invoiceDate?.toISOString().split("T")[0] || "N/A",
+      bottleReturn: returned ? "Yes" : "No",
+      status: inv.status || "N/A",
+    });
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Bottle tracking and summary fetched successfully",
+    summary: {
+      totalInvoices,
+      totalBottles,
+      totalReturnedBottles,
+      byQuantity,
+    },
+    tracking,
+  });
+});

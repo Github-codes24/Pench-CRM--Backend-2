@@ -1,37 +1,38 @@
+// routes/deliveryRoutes.js
+
+// routes/dashboardRoutes.js
 const express = require("express");
 const router = express.Router();
 
 const {
-  createDeliveryBoy,
-  loginDeliveryBoy,
-  getAllDeliveryBoys,
-  getDeliveryBoyById,
-  updateDeliveryBoy,
-  deleteDeliveryBoy,
-  deliveryBoyForgotPassword,
-  verifyOtpAndResetDeliveryBoyPassword,
-  getDeliveryBoyNotifications,
-  getUnreadNotifications,
-  getDeliveryBoyLocation,
-  markNotificationAsRead,
-  updateshiftBoyDetails
+  getDashboardStats,
+  getSalesReport,
+  getWeeklyEarningsByDay,
+  getDeliverySummary,
+  getProductInsightThisWeek,
+  getBottleTracking,
 } = require("../controller/deliveryBoyController");
 
-const { isAuthenticatedUser, isAuthenticatedDeliveryBoy } = require("../middlewares/auth");
+// Dashboard summary stats
+router.get("/stats", getDashboardStats);
 
-router.post("/adddeliveryboy", isAuthenticatedUser, createDeliveryBoy);
+// Sales report
+router.get("/sales-report", getSalesReport);
 
-router.put("/delivery-boy/shift", updateshiftBoyDetails);
-router.post("/deliveryboy/login", loginDeliveryBoy);
-router.get("/getalldeliveryboys", getAllDeliveryBoys);
-router.get("/getdeliveryboy/:id", getDeliveryBoyById);
-router.put("/updatedeliveryboy/deliveryboys/:id", updateDeliveryBoy);
-router.post("/forgot-password", deliveryBoyForgotPassword);
-router.post("/reset-password", verifyOtpAndResetDeliveryBoyPassword);
-router.delete("/deletedeliveryboy/:id", isAuthenticatedUser, deleteDeliveryBoy);
-router.get("/deliveryboy/notifications", isAuthenticatedDeliveryBoy, getDeliveryBoyNotifications);
-router.get("/deliveryboy/notifications/unread", isAuthenticatedDeliveryBoy, getUnreadNotifications);
-router.put("/deliveryboy/notifications/read/:notificationId", isAuthenticatedDeliveryBoy, markNotificationAsRead);
-router.get("/deliveryboy/location/:deliveryBoyId", getDeliveryBoyLocation); // Changed from GET to POST
+// Weekly / Monthly / Yearly earnings
+// Example: /api/dashboard/earnings?type=weekly
+router.get("/earnings", getWeeklyEarningsByDay);
+
+// Delivery summary
+// Example: /api/dashboard/delivery-summary?filter=daily
+router.get("/delivery-summary", getDeliverySummary);
+
+// Product insight (day/week/month)
+// Example: /api/dashboard/product-insight?range=week
+router.get("/product-insight", getProductInsightThisWeek);
+
+// Bottle tracking
+// Example: /api/dashboard/bottle-tracking?from=2025-08-01&to=2025-08-14
+router.get("/bottle-tracking", getBottleTracking);
 
 module.exports = router;

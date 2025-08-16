@@ -1,12 +1,12 @@
 const Customer = require("../models/customerModel");
 const ErrorHandler = require("../utils/errorhandler");
 const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
-const SubscriptionPlan = require("../models/subscrptionplanModel");
-const Subscription = require("../models/subscrptionModel");
+const SubscriptionPlan = require("../models/subscriptionPlanModel");
+const Subscription = require("../models/subscriptionModel");
 const DeliveryBoy = require("../models/deliveryBoyModel");
 const Product = require("../models/productModel");
 const Invoice = require("../models/invoiceModel");
-const Notification = require("../models/notificationModel")
+const Notification = require("../models/notificationModel");
 // ➕ Add a new customer
 
 // exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
@@ -42,7 +42,6 @@ const Notification = require("../models/notificationModel")
 // if (existingCustomer) {
 //    return next(new ErrorHandler("Customer with this phone number already exists", 400));
 // }
-
 
 //   // ✅ 2. Validate quantity & price
 //   const quantityNumber = Number(quantity);
@@ -129,8 +128,17 @@ exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
 
   // Validate required fields
   if (
-    !name || !phoneNumber || !productType || !size || !deliveryDays || !deliveryBoy ||
-    !subscriptionPlan || !quantity || !price || !address || !paymentMode
+    !name ||
+    !phoneNumber ||
+    !productType ||
+    !size ||
+    !deliveryDays ||
+    !deliveryBoy ||
+    !subscriptionPlan ||
+    !quantity ||
+    !price ||
+    !address ||
+    !paymentMode
   ) {
     return next(new ErrorHandler("All fields are required", 400));
   }
@@ -138,7 +146,9 @@ exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
   // Check if customer already exists
   const existingCustomer = await Customer.findOne({ phoneNumber });
   if (existingCustomer) {
-    return next(new ErrorHandler("Customer with this phone number already exists", 400));
+    return next(
+      new ErrorHandler("Customer with this phone number already exists", 400)
+    );
   }
 
   const quantityNumber = Number(quantity);
@@ -161,7 +171,9 @@ exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
   // Get product by name (productType) and size
   const product = await Product.findOne({ productType, size });
   if (!product) {
-    return next(new ErrorHandler("Product not found for given type and size", 404));
+    return next(
+      new ErrorHandler("Product not found for given type and size", 404)
+    );
   }
 
   if (product.stock < quantityNumber) {
@@ -188,7 +200,7 @@ exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
     customer: customer._id,
     name: customer.name,
     phoneNumber: customer.phoneNumber,
-    productType: product._id,  // ✅ fixed here
+    productType: product._id, // ✅ fixed here
     size,
     deliveryDays: customer.deliveryDays,
     assignedDeliveryBoy: customer.deliveryBoy,
@@ -207,19 +219,19 @@ exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
 
   // Generate invoice ID
   const today = new Date();
-  const dd = String(today.getDate()).padStart(2, '0');
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, "0");
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
   const yyyy = today.getFullYear();
   const dateStr = `${dd}${mm}${yyyy}`;
 
   const countToday = await Invoice.countDocuments({
     createdAt: {
       $gte: new Date(`${yyyy}-${mm}-${dd}T00:00:00.000Z`),
-      $lte: new Date(`${yyyy}-${mm}-${dd}T23:59:59.999Z`)
-    }
+      $lte: new Date(`${yyyy}-${mm}-${dd}T23:59:59.999Z`),
+    },
   });
 
-  const paddedCount = String(countToday + 1).padStart(3, '0');
+  const paddedCount = String(countToday + 1).padStart(3, "0");
   const invoiceId = `INV-${dateStr}-${paddedCount}`;
 
   // Calculate payment
@@ -248,7 +260,7 @@ exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
     customer: customer._id,
     customerName: customer.name,
     productId: product._id,
-    productType: product._id,  // ✅ fixed here
+    productType: product._id, // ✅ fixed here
     size,
     productQuantity: quantityNumber,
     price: priceNumber,
@@ -257,14 +269,14 @@ exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
     paymentStatus: finalPaymentStatus,
     partialPayment: isPartial,
     amountPaid: paidAmount,
-    amountDue: dueAmount
+    amountDue: dueAmount,
   });
 
   // Create delivery boy notification
   if (customer.deliveryBoy) {
     await Notification.create({
       deliveryBoy: customer.deliveryBoy,
-      message: `New invoice (${invoiceId}) created for ${customer.name}.`
+      message: `New invoice (${invoiceId}) created for ${customer.name}.`,
     });
   }
 
@@ -273,11 +285,9 @@ exports.createCustomer = catchAsyncErrors(async (req, res, next) => {
     message: "Customer, subscription, and invoice created successfully",
     customer,
     subscription,
-    invoice
+    invoice,
   });
 });
-
-
 
 // 📋 Get all customers
 // exports.getAllCustomers = catchAsyncErrors(async (req, res, next) => {
@@ -299,25 +309,25 @@ exports.getAllCustomerss = catchAsyncErrors(async (req, res, next) => {
 
   // Fetch all subscriptions (only active or blocked)
   const subscriptions = await Subscription.find({
-    status: { $in: ["Active", "Blocked"] }
+    status: { $in: ["Active", "Blocked"] },
   }).select("customer status subscriptionPlan startDate endDate isActive");
 
   // Create a map of customerId => subscription details
   const subscriptionMap = {};
-  subscriptions.forEach(sub => {
+  subscriptions.forEach((sub) => {
     if (sub.customer) {
       subscriptionMap[sub.customer.toString()] = {
         status: sub.status,
         subscriptionPlan: sub.subscriptionPlan,
         startDate: sub.startDate,
         endDate: sub.endDate,
-        isActive: sub.isActive
+        isActive: sub.isActive,
       };
     }
   });
 
   // Attach subscription info to each customer
-  const enrichedCustomers = customers.map(customer => {
+  const enrichedCustomers = customers.map((customer) => {
     const subInfo = subscriptionMap[customer._id.toString()] || null;
     return {
       ...customer.toObject(),
@@ -325,14 +335,14 @@ exports.getAllCustomerss = catchAsyncErrors(async (req, res, next) => {
       subscriptionPlan: subInfo?.subscriptionPlan || null,
       subscriptionStartDate: subInfo?.startDate || null,
       subscriptionEndDate: subInfo?.endDate || null,
-      isActive: subInfo?.isActive ?? false
+      isActive: subInfo?.isActive ?? false,
     };
   });
 
   res.status(200).json({
     success: true,
     count: enrichedCustomers.length,
-    customers: enrichedCustomers
+    customers: enrichedCustomers,
   });
 });
 
@@ -418,8 +428,6 @@ exports.getAllCustomers = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-
-
 // 🔍 Get single customer by ID
 exports.getCustomerById = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
@@ -470,7 +478,7 @@ exports.updateCustomer = catchAsyncErrors(async (req, res, next) => {
     phoneNumber,
     productType,
     deliveryDays,
-    deliveryBoy,   // delivery boy ID
+    deliveryBoy, // delivery boy ID
     subscriptionPlan,
     quantity,
     address,
@@ -573,10 +581,6 @@ exports.updateCustomer = catchAsyncErrors(async (req, res, next) => {
     subscription,
   });
 });
-
-
-
-
 
 // ❌ Delete customer
 exports.deleteCustomer = catchAsyncErrors(async (req, res, next) => {

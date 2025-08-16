@@ -3,13 +3,15 @@ const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const ErrorHandler = require("../utils/errorhandler");
 const Customer = require("../models/customerModel");
 const Product = require("../models/productModel");
-const Subscription = require("../models/subscrptionplanModel")
+const Subscription = require("../models/subscriptionPlanModel");
 // Create Lead
 exports.createLead = catchAsyncErrors(async (req, res, next) => {
   const { date, customerName, source, product, status } = req.body;
 
   if (!date || !customerName || !source || !product || !status) {
-    return res.status(400).json({ success: false, message: "All fields are required" });
+    return res
+      .status(400)
+      .json({ success: false, message: "All fields are required" });
   }
 
   // 🟡 Fetch the product from database by name
@@ -56,23 +58,29 @@ exports.getLeadSummary = catchAsyncErrors(async (req, res, next) => {
 
   // Build filter conditions
   const leadFilter = startDate ? { createdAt: { $gte: startDate } } : {};
-  const subscriptionFilter = startDate ? { subscriptionPlan: { $exists: true, $ne: null }, createdAt: { $gte: startDate } } : { subscriptionPlan: { $exists: true, $ne: null } };
+  const subscriptionFilter = startDate
+    ? {
+        subscriptionPlan: { $exists: true, $ne: null },
+        createdAt: { $gte: startDate },
+      }
+    : { subscriptionPlan: { $exists: true, $ne: null } };
 
   // 1. Count leads and conversions
   const totalLeads = await Lead.countDocuments(leadFilter);
   const convertedLeads = await Lead.countDocuments({
     ...leadFilter,
-    leadOutcome: "Converted"
+    leadOutcome: "Converted",
   });
 
-  const conversionRate = totalLeads === 0 ? 0 : Math.round((convertedLeads / totalLeads) * 100);
+  const conversionRate =
+    totalLeads === 0 ? 0 : Math.round((convertedLeads / totalLeads) * 100);
 
   // 2. Top selling product from leads
   const topSellingProductAgg = await Lead.aggregate([
     { $match: leadFilter },
     { $group: { _id: "$product", count: { $sum: 1 } } },
     { $sort: { count: -1 } },
-    { $limit: 1 }
+    { $limit: 1 },
   ]);
   const topSellingProduct = topSellingProductAgg[0]?._id || "N/A";
 
@@ -81,7 +89,7 @@ exports.getLeadSummary = catchAsyncErrors(async (req, res, next) => {
     { $match: subscriptionFilter },
     { $group: { _id: "$subscriptionPlan", count: { $sum: 1 } } },
     { $sort: { count: -1 } },
-    { $limit: 1 }
+    { $limit: 1 },
   ]);
   const topSellingSubscription = topSubscriptionPlanAgg[0]?._id || "N/A";
 
@@ -93,12 +101,10 @@ exports.getLeadSummary = catchAsyncErrors(async (req, res, next) => {
       convertedLeads,
       conversionRate: `${conversionRate}%`,
       topSellingProduct,
-      topSellingSubscription
-    }
+      topSellingSubscription,
+    },
   });
 });
-
-
 
 // Add Follow-Up to Lead with auto-generated date
 exports.addFollowUp = catchAsyncErrors(async (req, res, next) => {
@@ -130,8 +136,6 @@ exports.addFollowUp = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-
-
 // Convert Lead to Customer (Auto)
 exports.convertLeadToCustomerfri = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
@@ -145,7 +149,7 @@ exports.convertLeadToCustomerfri = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Lead already converted to customer", 400));
   }
 
-    const defaultPlan = "Daily";
+  const defaultPlan = "Daily";
 
   // ✅ Use a default valid phone number (or add phone to Lead model and use that)
   const defaultPhone = "9999999999";
@@ -177,8 +181,8 @@ exports.convertLeadToCustomer = catchAsyncErrors(async (req, res, next) => {
   const {
     name,
     phoneNumber,
-    productType,     // e.g. "A2 Milk"
-    size,            // e.g. "1ltr"
+    productType, // e.g. "A2 Milk"
+    size, // e.g. "1ltr"
     deliveryDays,
     deliveryBoyId,
     subscriptionPlan,
@@ -203,7 +207,12 @@ exports.convertLeadToCustomer = catchAsyncErrors(async (req, res, next) => {
   // ✅ Fetch the product from DB using name + size
   const product = await Product.findOne({ productType, size });
   if (!product) {
-    return next(new ErrorHandler(`Product '${productType}' with size '${size}' not found`, 404));
+    return next(
+      new ErrorHandler(
+        `Product '${productType}' with size '${size}' not found`,
+        404
+      )
+    );
   }
 
   // ✅ Find lead
@@ -220,9 +229,9 @@ exports.convertLeadToCustomer = catchAsyncErrors(async (req, res, next) => {
   const customer = await Customer.create({
     name,
     phoneNumber,
-    productType: product._id,   // ObjectId reference to Product
+    productType: product._id, // ObjectId reference to Product
     size,
-    price: product.price,       // pulled from product
+    price: product.price, // pulled from product
     deliveryDays,
     deliveryBoy: deliveryBoyId || null,
     subscriptionPlan,
@@ -241,8 +250,6 @@ exports.convertLeadToCustomer = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-
-
 // Mark Lead as Not Interested
 exports.markLeadNotInterested = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
@@ -253,7 +260,9 @@ exports.markLeadNotInterested = catchAsyncErrors(async (req, res, next) => {
   }
 
   if (lead.leadOutcome === "Not Interested") {
-    return next(new ErrorHandler("Lead is already marked as Not Interested", 400));
+    return next(
+      new ErrorHandler("Lead is already marked as Not Interested", 400)
+    );
   }
 
   lead.leadOutcome = "Not Interested";
@@ -277,9 +286,6 @@ exports.getConvertedLeads = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-
-
-
 // Get All Leads
 exports.getAllLeads = catchAsyncErrors(async (req, res, next) => {
   const leads = await Lead.find().sort({ createdAt: -1 });
@@ -292,18 +298,18 @@ exports.getAllLeads = catchAsyncErrors(async (req, res, next) => {
 });
 
 exports.getLeadById = catchAsyncErrors(async (req, res, next) => {
-    const { id } = req.params;
-    
-    const lead = await Lead.findById(id);
-    
-    if (!lead) {
-        return next(new ErrorHandler("Lead not found", 404));
-    }
-    
-    res.status(200).json({
-        success: true,
-        lead,
-    });
+  const { id } = req.params;
+
+  const lead = await Lead.findById(id);
+
+  if (!lead) {
+    return next(new ErrorHandler("Lead not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    lead,
+  });
 });
 
 // Update Lead
@@ -322,7 +328,6 @@ exports.getLeadById = catchAsyncErrors(async (req, res, next) => {
 //     lead,
 //   });
 // });
-
 
 // Update Lead
 exports.updateLead = catchAsyncErrors(async (req, res, next) => {

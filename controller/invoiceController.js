@@ -1,9 +1,9 @@
 const Invoice = require("../models/invoiceModel");
 const Customer = require("../models/customerModel");
-const Subscription = require("../models/subscrptionModel");
+const Subscription = require("../models/subscriptionModel");
 const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const ErrorHandler = require("../utils/errorhandler");
-const Product = require("../models/productModel")
+const Product = require("../models/productModel");
 // ➕ Create a new invoice
 // exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
 //   const {
@@ -207,7 +207,6 @@ const Notification = require("../models/notificationModel");
 
 // console.log("Delivery boy for notification:", customerExists.deliveryBoy);
 
-
 //   res.status(201).json({
 //     success: true,
 //     message: "Invoice created and notification sent",
@@ -215,7 +214,7 @@ const Notification = require("../models/notificationModel");
 //     remainingStock: product.stock
 //   });
 // });
-const SubscriptionPlan = require("../models/subscrptionplanModel"); // Import the model
+const SubscriptionPlan = require("../models/subscriptionPlanModel"); // Import the model
 
 exports.createInvoicefri = catchAsyncErrors(async (req, res, next) => {
   const {
@@ -225,11 +224,18 @@ exports.createInvoicefri = catchAsyncErrors(async (req, res, next) => {
     price, // This is unit price
     subscriptionPlan,
     paymentMode,
-    paymentStatus
+    paymentStatus,
   } = req.body;
 
   // Validate required fields
-  if (!customerName || !productType || !productQuantity || !price || !subscriptionPlan || !paymentMode) {
+  if (
+    !customerName ||
+    !productType ||
+    !productQuantity ||
+    !price ||
+    !subscriptionPlan ||
+    !paymentMode
+  ) {
     return next(new ErrorHandler("All fields are required", 400));
   }
 
@@ -237,7 +243,9 @@ exports.createInvoicefri = catchAsyncErrors(async (req, res, next) => {
   const unitPrice = Number(price);
 
   if (isNaN(quantityNumber) || quantityNumber <= 0) {
-    return next(new ErrorHandler("Product quantity must be a valid number", 400));
+    return next(
+      new ErrorHandler("Product quantity must be a valid number", 400)
+    );
   }
 
   if (isNaN(unitPrice) || unitPrice <= 0) {
@@ -245,7 +253,9 @@ exports.createInvoicefri = catchAsyncErrors(async (req, res, next) => {
   }
 
   // Fetch customer
-  const customerExists = await Customer.findOne({ name: customerName }).populate("deliveryBoy");
+  const customerExists = await Customer.findOne({
+    name: customerName,
+  }).populate("deliveryBoy");
   if (!customerExists) {
     return next(new ErrorHandler("Customer not found", 404));
   }
@@ -262,7 +272,9 @@ exports.createInvoicefri = catchAsyncErrors(async (req, res, next) => {
   }
 
   // Fetch subscription plan
-  const plan = await SubscriptionPlan.findOne({ subscriptionPlan }).populate("products");
+  const plan = await SubscriptionPlan.findOne({ subscriptionPlan }).populate(
+    "products"
+  );
   if (!plan) {
     return next(new ErrorHandler("Subscription plan not found", 404));
   }
@@ -272,19 +284,19 @@ exports.createInvoicefri = catchAsyncErrors(async (req, res, next) => {
 
   // Generate invoice ID
   const today = new Date();
-  const dd = String(today.getDate()).padStart(2, '0');
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, "0");
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
   const yyyy = today.getFullYear();
   const dateStr = `${dd}${mm}${yyyy}`;
 
   const countToday = await Invoice.countDocuments({
     createdAt: {
       $gte: new Date(`${yyyy}-${mm}-${dd}T00:00:00.000Z`),
-      $lte: new Date(`${yyyy}-${mm}-${dd}T23:59:59.999Z`)
-    }
+      $lte: new Date(`${yyyy}-${mm}-${dd}T23:59:59.999Z`),
+    },
   });
 
-  const paddedCount = String(countToday + 1).padStart(3, '0');
+  const paddedCount = String(countToday + 1).padStart(3, "0");
   const invoiceId = `INV-${dateStr}-${paddedCount}`;
 
   // Update stock
@@ -301,14 +313,14 @@ exports.createInvoicefri = catchAsyncErrors(async (req, res, next) => {
     price: totalPrice, // ✅ Final price based on quantity
     subscriptionPlan,
     paymentMode,
-    paymentStatus
+    paymentStatus,
   });
 
   // Notify delivery boy
   if (customerExists.deliveryBoy) {
     const notification = await Notification.create({
       deliveryBoy: customerExists.deliveryBoy._id,
-      message: `New invoice (${invoiceId}) created for ${customerExists.name}.`
+      message: `New invoice (${invoiceId}) created for ${customerExists.name}.`,
     });
     console.log("Notification created:", notification);
   }
@@ -323,9 +335,9 @@ exports.createInvoicefri = catchAsyncErrors(async (req, res, next) => {
       discount: plan.discount,
       totalPrice: plan.totalPrice,
       deliveryTime: plan.deliveryTime,
-      products: plan.products
+      products: plan.products,
     },
-    remainingStock: product.stock
+    remainingStock: product.stock,
   });
 });
 
@@ -339,10 +351,17 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
     paymentMode,
     paymentStatus,
     isPartialPayment,
-    amountPaid
+    amountPaid,
   } = req.body;
 
-  if (!customerName || !productType || productQuantity == null || price == null || !subscriptionPlan || !paymentMode) {
+  if (
+    !customerName ||
+    !productType ||
+    productQuantity == null ||
+    price == null ||
+    !subscriptionPlan ||
+    !paymentMode
+  ) {
     return next(new ErrorHandler("All fields are required", 400));
   }
 
@@ -350,24 +369,32 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
   const fixedPrice = parseFloat(price); // ✅ treat price as full amount
 
   if (isNaN(quantityNumber) || quantityNumber <= 0) {
-    return next(new ErrorHandler("Product quantity must be a valid number", 400));
+    return next(
+      new ErrorHandler("Product quantity must be a valid number", 400)
+    );
   }
 
   if (isNaN(fixedPrice) || fixedPrice <= 0) {
     return next(new ErrorHandler("Price must be a valid number", 400));
   }
 
-  const customerExists = await Customer.findOne({ name: customerName }).populate("deliveryBoy");
+  const customerExists = await Customer.findOne({
+    name: customerName,
+  }).populate("deliveryBoy");
   if (!customerExists) return next(new ErrorHandler("Customer not found", 404));
 
-  const product = await Product.findOne({ productType }).select("productType stock price image");
+  const product = await Product.findOne({ productType }).select(
+    "productType stock price image"
+  );
   if (!product) return next(new ErrorHandler("Product type not found", 404));
 
   if (product.stock < quantityNumber) {
     return next(new ErrorHandler("Insufficient stock available", 400));
   }
 
-  const plan = await SubscriptionPlan.findOne({ subscriptionPlan }).populate("products");
+  const plan = await SubscriptionPlan.findOne({ subscriptionPlan }).populate(
+    "products"
+  );
   if (!plan) return next(new ErrorHandler("Subscription plan not found", 404));
 
   const totalPrice = fixedPrice; // ✅ Don't multiply with quantity
@@ -397,19 +424,19 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
 
   // ✅ Generate invoice ID
   const today = new Date();
-  const dd = String(today.getDate()).padStart(2, '0');
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, "0");
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
   const yyyy = today.getFullYear();
   const dateStr = `${dd}${mm}${yyyy}`;
 
   const countToday = await Invoice.countDocuments({
     createdAt: {
       $gte: new Date(`${yyyy}-${mm}-${dd}T00:00:00.000Z`),
-      $lte: new Date(`${yyyy}-${mm}-${dd}T23:59:59.999Z`)
-    }
+      $lte: new Date(`${yyyy}-${mm}-${dd}T23:59:59.999Z`),
+    },
   });
 
-  const paddedCount = String(countToday + 1).padStart(3, '0');
+  const paddedCount = String(countToday + 1).padStart(3, "0");
   const invoiceId = `INV-${dateStr}-${paddedCount}`;
 
   // Update product stock
@@ -429,14 +456,14 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
     paymentStatus: finalPaymentStatus,
     partialPayment: isPartial,
     amountPaid: paidAmount,
-    amountDue: dueAmount
+    amountDue: dueAmount,
   });
 
   // ✅ Subscription logic
   const existingSubscription = await Subscription.findOne({
     customer: customerExists._id,
     productType,
-    isActive: true
+    isActive: true,
   });
 
   if (!existingSubscription) {
@@ -465,7 +492,7 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
   if (customerExists.deliveryBoy) {
     await Notification.create({
       deliveryBoy: customerExists.deliveryBoy._id,
-      message: `New invoice (${invoiceId}) created for ${customerExists.name}.`
+      message: `New invoice (${invoiceId}) created for ${customerExists.name}.`,
     });
   }
 
@@ -478,13 +505,11 @@ exports.createInvoice = catchAsyncErrors(async (req, res, next) => {
       discount: plan.discount,
       totalPrice: plan.totalPrice,
       deliveryTime: plan.deliveryTime,
-      products: plan.products
+      products: plan.products,
     },
-    remainingStock: product.stock
+    remainingStock: product.stock,
   });
 });
-
-
 
 // 📋 Get all invoices
 // exports.getAllInvoices = catchAsyncErrors(async (req, res, next) => {
@@ -507,7 +532,7 @@ exports.getAllInvoices = catchAsyncErrors(async (req, res, next) => {
   if (from && to) {
     filter.createdAt = {
       $gte: new Date(from + "T00:00:00.000Z"),
-      $lte: new Date(to + "T23:59:59.999Z")
+      $lte: new Date(to + "T23:59:59.999Z"),
     };
   }
 
@@ -521,7 +546,7 @@ exports.getAllInvoices = catchAsyncErrors(async (req, res, next) => {
     customerName: 1,
     invoiceId: 1,
     subscriptionPlan: 1,
-    productType: 1,       // ensure productType is returned
+    productType: 1, // ensure productType is returned
     price: 1,
     paymentStatus: 1,
     _id: 1,
@@ -530,10 +555,9 @@ exports.getAllInvoices = catchAsyncErrors(async (req, res, next) => {
   res.status(200).json({
     success: true,
     count: invoices.length,
-    invoices
+    invoices,
   });
 });
-
 
 const { generateInvoiceMessage } = require("../utils/whatsappFormatter");
 
@@ -563,7 +587,7 @@ exports.sendInvoiceOnWhatsApp = catchAsyncErrors(async (req, res, next) => {
 
   const invoice = await Invoice.findById(id).populate({
     path: "customer",
-    select: "phoneNumber name"
+    select: "phoneNumber name",
   });
 
   if (!invoice) return next(new ErrorHandler("Invoice not found", 404));
@@ -582,7 +606,6 @@ exports.sendInvoiceOnWhatsApp = catchAsyncErrors(async (req, res, next) => {
     whatsappLink,
   });
 });
-
 
 // exports.sendMultipleInvoicesOnWhatsApp = catchAsyncErrors(async (req, res, next) => {
 //   const { invoiceIds } = req.body;
@@ -610,60 +633,66 @@ exports.sendInvoiceOnWhatsApp = catchAsyncErrors(async (req, res, next) => {
 //   });
 // });
 
-exports.sendMultipleInvoicesOnWhatsAppsat = catchAsyncErrors(async (req, res, next) => {
-  // ✅ 1. Get all invoices and populate customer info
-  const invoices = await Invoice.find().populate("customer");
+exports.sendMultipleInvoicesOnWhatsAppsat = catchAsyncErrors(
+  async (req, res, next) => {
+    // ✅ 1. Get all invoices and populate customer info
+    const invoices = await Invoice.find().populate("customer");
 
-  if (!invoices || invoices.length === 0) {
-    return next(new ErrorHandler("No invoices found", 404));
+    if (!invoices || invoices.length === 0) {
+      return next(new ErrorHandler("No invoices found", 404));
+    }
+
+    // ✅ 2. Generate WhatsApp message links
+    const links = invoices.map((invoice) => {
+      const message = generateInvoiceMessage(invoice); // You must already have this function
+      const phone = invoice.customer?.phoneNumber || "9999999999";
+
+      return {
+        invoiceId: invoice.invoiceId,
+        customerName: invoice.customer?.name,
+        whatsappLink: `https://wa.me/91${phone}?text=${encodeURIComponent(
+          message
+        )}`,
+      };
+    });
+
+    // ✅ 3. Return all WhatsApp links
+    res.status(200).json({
+      success: true,
+      count: links.length,
+      links,
+    });
   }
+);
+exports.sendMultipleInvoicesOnWhatsApp = catchAsyncErrors(
+  async (req, res, next) => {
+    // 1. Fetch all invoices
+    const invoices = await Invoice.find().populate("customer");
 
-  // ✅ 2. Generate WhatsApp message links
-  const links = invoices.map((invoice) => {
-    const message = generateInvoiceMessage(invoice); // You must already have this function
-    const phone = invoice.customer?.phoneNumber || "9999999999";
+    if (!invoices || invoices.length === 0) {
+      return next(new ErrorHandler("No invoices found", 404));
+    }
 
-    return {
-      invoiceId: invoice.invoiceId,
-      customerName: invoice.customer?.name,
-      whatsappLink: `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`
-    };
-  });
+    // 2. Create WhatsApp message links
+    const links = invoices.map((invoice) => {
+      const phone = invoice.customer?.phoneNumber || "9999999999";
+      const message = generateInvoiceMessage(invoice); // Pre-encoded inside
 
-  // ✅ 3. Return all WhatsApp links
-  res.status(200).json({
-    success: true,
-    count: links.length,
-    links
-  });
-});
-exports.sendMultipleInvoicesOnWhatsApp = catchAsyncErrors(async (req, res, next) => {
-  // 1. Fetch all invoices
-  const invoices = await Invoice.find().populate("customer");
+      return {
+        invoiceId: invoice.invoiceId,
+        customerName: invoice.customer?.name,
+        whatsappLink: `https://wa.me/91${phone}?text=${message}`,
+      };
+    });
 
-  if (!invoices || invoices.length === 0) {
-    return next(new ErrorHandler("No invoices found", 404));
+    // 3. Respond with all links
+    res.status(200).json({
+      success: true,
+      count: links.length,
+      links,
+    });
   }
-
-  // 2. Create WhatsApp message links
-  const links = invoices.map((invoice) => {
-    const phone = invoice.customer?.phoneNumber || "9999999999";
-    const message = generateInvoiceMessage(invoice); // Pre-encoded inside
-
-    return {
-      invoiceId: invoice.invoiceId,
-      customerName: invoice.customer?.name,
-      whatsappLink: `https://wa.me/91${phone}?text=${message}`
-    };
-  });
-
-  // 3. Respond with all links
-  res.status(200).json({
-    success: true,
-    count: links.length,
-    links
-  });
-});
+);
 
 exports.getInvoiceById = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
@@ -676,13 +705,15 @@ exports.getInvoiceById = catchAsyncErrors(async (req, res, next) => {
 
   // 2. Safely get customer name (fallback to invoice.customerName)
   let customerName = invoice.customerName || "N/A";
-  let phoneNumber = invoice.phoneNumber || "N/A"
+  let phoneNumber = invoice.phoneNumber || "N/A";
   if (invoice.customer) {
-    const customer = await Customer.findById(invoice.customer).select("name phoneNumber");
+    const customer = await Customer.findById(invoice.customer).select(
+      "name phoneNumber"
+    );
     if (customer && customer.name) {
       customerName = customer.name;
     }
-   if (customer && customer.phoneNumber) {
+    if (customer && customer.phoneNumber) {
       phoneNumber = customer.phoneNumber;
     }
   }
@@ -690,7 +721,9 @@ exports.getInvoiceById = catchAsyncErrors(async (req, res, next) => {
   // 3. Get product description (optional)
   let productDescription = "N/A";
   if (invoice.productType) {
-    const product = await Product.findById(invoice.productType).select("description");
+    const product = await Product.findById(invoice.productType).select(
+      "description"
+    );
     if (product?.description) {
       productDescription = product.description;
     }
@@ -715,7 +748,7 @@ exports.getInvoiceById = catchAsyncErrors(async (req, res, next) => {
       grandTotal: total,
       paymentStatus: invoice.paymentStatus,
       paymentMode: invoice.paymentMode,
-    }
+    },
   });
 });
 // 🔍 Get single invoice by ID
@@ -745,13 +778,13 @@ exports.updateInvoice = catchAsyncErrors(async (req, res, next) => {
 
   invoice = await Invoice.findByIdAndUpdate(id, req.body, {
     new: true,
-    runValidators: true
+    runValidators: true,
   });
 
   res.status(200).json({
     success: true,
     message: "Invoice updated successfully",
-    invoice
+    invoice,
   });
 });
 
@@ -768,7 +801,6 @@ exports.deleteInvoice = catchAsyncErrors(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: "Invoice deleted successfully"
+    message: "Invoice deleted successfully",
   });
 });
-
