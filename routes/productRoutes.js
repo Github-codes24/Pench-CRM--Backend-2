@@ -11,8 +11,8 @@ const {
   getProductDashboardStats,
   deleteProduct,
   getTopSellingProducts,
-  addProductQuantity,
-  removeProductQuantity,
+  addStockQuantity,
+  removeStockQuantity,
   getProductsBySellerId,
 } = require("../controller/productController"); //
 const upload = require("../utils/multer"); // Handles file uploads
@@ -26,30 +26,26 @@ router.post(
   createProduct
 );
 
-router.put(
-  "/product/:productId/add-quantity",
-  isAuthenticatedUser,
-  addProductQuantity
-);
-router.put(
-  "/product/:productId/remove-quantity",
-  isAuthenticatedUser,
-  removeProductQuantity
-);
-
 // Get all products
 router.get("/get-all-products", getAllProducts);
 
-// Get single product by ID
-router.get("/products/:id", isAuthenticatedUser, getProductById);
-
 // Update product by ID (with image upload)
 router.put(
-  "/products/:id",
-  isAuthenticatedUser,
-  upload.array("image", 5),
+  "/edit-product/:id",
+ /*isAuthenticatedUser,*/
   updateProduct
 );
+
+// add stock quantity
+router.put("/product/:productId/add-stock-quantity",/*isAuthenticatedUser,*/ addStockQuantity);
+
+// remove stock quantity
+router.put("/product/:productId/remove-stock-quantity",/*isAuthenticatedUser,*/ removeStockQuantity);
+
+// Get single product by ID
+router.get("/get-product/:id",/*isAuthenticatedUser,*/ getProductById);
+
+
 
 // Delete product by ID
 router.delete("/products/:id", isAuthenticatedUser, deleteProduct);
