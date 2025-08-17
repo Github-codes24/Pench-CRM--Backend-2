@@ -13,7 +13,7 @@ const productSchema = new mongoose.Schema(
     productSize: {
       type: String,
       required: true,
-      enum: ["1kg", "1/2kg", "1ltr", "1/2ltr"],
+      // enum: ["1kg", "1/2kg", "1ltr", "1/2ltr"],
     },
     price: {
       type: Number,
