@@ -196,7 +196,7 @@ exports.getDeliveryBoyById = catchAsyncErrors(async (req, res, next) => {
         phoneNumber: deliveryBoy.phoneNumber,
         area: deliveryBoy.area,
         productType: deliveryBoy.productType,
-        assignedCustomers: deliveryBoy.assignedCustomers,
+        // assignedCustomers: deliveryBoy.assignedCustomers,
       },
     });
   } catch (error) {

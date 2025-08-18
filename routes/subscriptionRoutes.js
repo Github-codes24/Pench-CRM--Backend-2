@@ -9,8 +9,8 @@ const {
   updateSubscription,
   createSubscriptionPlan,
   deleteSubscription,
-  deleteSubscriptionPlan
-} = require("../controllers/subscriptionController");
+  deleteSubscriptionPlan,
+} = require("../controller/subscriptionController");
 
 // // ➕ Create a new subscription
 // router.post("/subscription", createSubscription);
