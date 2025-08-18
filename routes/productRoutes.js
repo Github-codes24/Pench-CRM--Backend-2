@@ -1,20 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const {
-  createProduct,
-  getAllProducts,
-  getLowStockProducts,
-  getProductById,
-  updateProduct,
-  assignProductToDeliveryBoy,
-  getSellerProducts,
-  getProductDashboardStats,
-  deleteProduct,
-  getTopSellingProducts,
-  addStockQuantity,
-  removeStockQuantity,
-  getProductsBySellerId,
-} = require("../controller/productController"); //
+const {createProduct , getAllProducts ,getLowStockProducts, getProductById ,getProductByProductName,getProductByProductSize, updateProduct ,assignProductToDeliveryBoy,getSellerProducts,getProductDashboardStats, deleteProduct,getTopSellingProducts,addStockQuantity,removeStockQuantity,getProductsBySellerId} = require("../controllers/productController"); // 
 const upload = require("../utils/multer"); // Handles file uploads
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/auth"); // Optional if you use auth
 
@@ -33,29 +19,30 @@ router.get("/get-all-products", getAllProducts);
 router.put(
   "/edit-product/:id",
  /*isAuthenticatedUser,*/
+  upload.array("image", 5),
   updateProduct
 );
 
-// add stock quantity
 router.put("/product/:productId/add-stock-quantity",/*isAuthenticatedUser,*/ addStockQuantity);
-
-// remove stock quantity
 router.put("/product/:productId/remove-stock-quantity",/*isAuthenticatedUser,*/ removeStockQuantity);
 
 // Get single product by ID
 router.get("/get-product/:id",/*isAuthenticatedUser,*/ getProductById);
-
-
+router.get("/get-product-by-name/",/*isAuthenticatedUser,*/ getProductByProductName);
+router.get("/get-product-by-size/",/*isAuthenticatedUser,*/ getProductByProductSize);
 
 // Delete product by ID
-router.delete("/products/:id", isAuthenticatedUser, deleteProduct);
+router.delete(
+  "/products/:id",
+  /*isAuthenticatedUser,*/
+  deleteProduct
+);
 
-router.route("/getsellerproducts").get(isAuthenticatedUser, getSellerProducts);
+router.route("/getsellerproducts").get(isAuthenticatedUser, getSellerProducts)
 router.get("/product-stats", getProductDashboardStats);
 router.post("/assign-product", assignProductToDeliveryBoy);
 
 //low stock aleart
-
 router.get("/low-stock/products", getLowStockProducts);
 
 module.exports = router;

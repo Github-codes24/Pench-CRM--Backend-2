@@ -3,13 +3,13 @@ const router = express.Router();
 
 const {
   getPaymentSummary,
-viewPaymentByCustomer,
-getPaymentDetailsById,
-getAllReceivedPayments,
-viewPaymentDetails,
-getAllPendingPayments,
-getAllPartialPayments,
-submitRemainingPayment
+  viewPaymentByCustomer,
+  getPaymentDetailsById,
+  getAllReceivedPayments,
+  viewPaymentDetails,
+  getAllPendingPayments,
+  getAllPartialPayments,
+  submitRemainingPayment
 } = require("../controller/paymentController");
 
 const { isAuthenticatedDeliveryBoy } = require("../middlewares/auth");

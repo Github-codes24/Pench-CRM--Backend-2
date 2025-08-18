@@ -1,5 +1,3 @@
-// subscriptionRoutes.js
-
 const express = require("express");
 const router = express.Router();
 const {
@@ -11,8 +9,8 @@ const {
   updateSubscription,
   createSubscriptionPlan,
   deleteSubscription,
-  deleteSubscriptionPlan,
-} = require("../controller/subscriptionController");
+  deleteSubscriptionPlan
+} = require("../controllers/subscriptionController");
 
 // // ➕ Create a new subscription
 // router.post("/subscription", createSubscription);
@@ -34,7 +32,7 @@ router.delete("/delete-subscription-plan/:id", deleteSubscriptionPlan);
 // // 🔍 Get a subscription by ID
 // router.get("/subscription/:id", getSubscriptionById);
 
-// // ✏ Update a subscription
+// // ✏️ Update a subscription
 // router.put("/subscription/:id", updateSubscription);
 
 // // ❌ Delete a subscription
