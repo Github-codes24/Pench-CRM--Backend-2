@@ -170,22 +170,38 @@ exports.getAllDeliveryBoys = catchAsyncErrors(async (req, res, next) => {
 });
 
 // 🔍 Get delivery boy by ID
+// ── Get Delivery Boy By ID ─────────────────────────────
 exports.getDeliveryBoyById = catchAsyncErrors(async (req, res, next) => {
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
 
-  const deliveryBoy = await DeliveryBoy.findById(id).populate(
-    "assignedCustomers",
-    "name phoneNumber address"
-  );
+    // ── Fetch delivery boy with assigned customers ─────
+    const deliveryBoy = await DeliveryBoy.findById(id).populate({
+      path: "assignedCustomers",
+      select: "name phoneNumber address",
+    });
 
-  if (!deliveryBoy) {
-    return next(new ErrorHandler("Delivery boy not found", 404));
+    // ── If not found ──────────────────────────────────
+    if (!deliveryBoy) {
+      return next(new ErrorHandler("Delivery boy not found", 404));
+    }
+
+    // ── Success response ───────────────────────────────
+    res.status(200).json({
+      success: true,
+      data: {
+        id: deliveryBoy._id,
+        name: deliveryBoy.name,
+        email: deliveryBoy.email,
+        phoneNumber: deliveryBoy.phoneNumber,
+        area: deliveryBoy.area,
+        productType: deliveryBoy.productType,
+        assignedCustomers: deliveryBoy.assignedCustomers,
+      },
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 500));
   }
-
-  res.status(200).json({
-    success: true,
-    deliveryBoy,
-  });
 });
 
 // ✏ Update delivery boy
@@ -312,19 +328,34 @@ exports.verifyOtpAndResetDeliveryBoyPassword = catchAsyncErrors(
 );
 
 // ❌ Delete delivery boy
+// ── Delete Delivery Boy By ID ─────────────────────────────
 exports.deleteDeliveryBoy = catchAsyncErrors(async (req, res, next) => {
-  const deliveryBoy = await DeliveryBoy.findById(req.params.id);
-  if (!deliveryBoy) {
-    return next(new ErrorHandler("Delivery boy not found", 404));
+  try {
+    const { id } = req.params;
+
+    // ── Find delivery boy ─────────────────────────────
+    const deliveryBoy = await DeliveryBoy.findById(id);
+
+    if (!deliveryBoy) {
+      return next(new ErrorHandler("Delivery boy not found", 404));
+    }
+
+    // ── Delete delivery boy ──────────────────────────
+    await DeliveryBoy.findByIdAndDelete(id);
+
+    // ── Success response ─────────────────────────────
+    res.status(200).json({
+      success: true,
+      data: {
+        id,
+        message: "Delivery boy deleted successfully",
+      },
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 500));
   }
-
-  await deliveryBoy.remove();
-
-  res.status(200).json({
-    success: true,
-    message: "Delivery boy deleted successfully",
-  });
 });
+
 
 // controllers/notificationController.js
 // controllers/notificationController.js

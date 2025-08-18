@@ -56,7 +56,7 @@ const subscriptionPlanSchema = new mongoose.Schema(
     //     required: [true, 'Price is required.']
     // },
     // As requested: List of what's included
-    featuresIncluded: {
+  featuresIncluded: {
       type: [String],
       default: [],
     },

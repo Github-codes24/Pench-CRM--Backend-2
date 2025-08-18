@@ -18,6 +18,7 @@ const deliveryBoySchema = new mongoose.Schema(
     phoneNumber: {
       type: String,
       required: [true, "Phone number is required"],
+      unique: true,
       match: [/^[0-9]{10}$/, "Phone number must be 10 digits"],
     },
     area: {
