@@ -5,14 +5,14 @@ const {
   loginUser,
   logout,
   getUserDetails,
-  getAllSellers,
+  getAllUser,
   updateUserProfile,
   deleteUser,
   registerUser,
   changePassword,
   forgotPassword,
-  verifyOtpAndResetPassword
-} = require("../controllers/userController"); // adjust the path if needed
+  verifyOtpAndResetPassword,
+} = require("../controller/userController"); // adjust the path if needed
 
 const { isAuthenticatedUser } = require("../middlewares/auth"); // Middleware to protect routes
 const upload = require("../utils/multer"); // Middleware for file upload, e.g., Multer with S3
@@ -28,13 +28,18 @@ router.post("/login", loginUser);
 router.get("/logout", logout);
 
 // @route   GET /api/v1/users/:id
-router.get("/get/userprofile", isAuthenticatedUser, getUserDetails);
+router.get("/userdetail/:id", isAuthenticatedUser, getUserDetails);
 
 // @route   GET /api/v1/sellers
-router.get("/users", isAuthenticatedUser, getAllSellers);
+router.get("/users", isAuthenticatedUser, getAllUser);
 
 // @route   PUT /api/v1/users/:id
-router.put("/users/:id", isAuthenticatedUser, upload.single("userProfile"), updateUserProfile);
+router.put(
+  "/users/:id",
+  isAuthenticatedUser,
+  upload.single("userProfile"),
+  updateUserProfile
+);
 
 // @route   DELETE /api/v1/users/:id
 router.delete("/users/:id", isAuthenticatedUser, deleteUser);

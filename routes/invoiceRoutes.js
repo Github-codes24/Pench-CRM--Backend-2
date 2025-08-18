@@ -8,13 +8,12 @@ const {
   updateInvoice,
   deleteInvoice,
   sendMultipleInvoicesOnWhatsApp
-} = require("../controllers/invoiceController");
+} = require("../controller/invoiceController");
 
 const { isAuthenticatedUser } = require("../middlewares/auth");
 
 // 📦 Create a new invoice
-// router.post("/invoice", isAuthenticatedUser, createInvoice);
-router.post("/invoice", createInvoice);
+router.post("/invoice", isAuthenticatedUser, createInvoice);
 
 // 📋 Get all invoices
 router.get("/invoices", isAuthenticatedUser, getAllInvoices);
