@@ -5,10 +5,7 @@ const connectDatabase = () => {
   // console.log("Connecting to database:", dbURI);
 
   mongoose
-    .connect(dbURI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    })
+    .connect(dbURI)
     .then((data) => {
       console.log(`Mongodb connected with server: ${data.connection.host}`);
 
