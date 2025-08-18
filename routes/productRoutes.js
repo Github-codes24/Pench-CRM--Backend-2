@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const {createProduct , getAllProducts ,getLowStockProducts, getProductById , updateProduct ,assignProductToDeliveryBoy,getSellerProducts,getProductDashboardStats, deleteProduct,getTopSellingProducts,addProductQuantity,removeProductQuantity,getProductsBySellerId} = require("../controllers/productController"); // 
+const {createProduct , getAllProducts ,getLowStockProducts, getProductById ,getProductByProductName,getProductByProductSize, updateProduct ,assignProductToDeliveryBoy,getSellerProducts,getProductDashboardStats, deleteProduct,getTopSellingProducts,addStockQuantity,removeStockQuantity,getProductsBySellerId} = require("../controllers/productController"); // 
 const upload = require("../utils/multer"); // Handles file uploads
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/auth"); // Optional if you use auth
 
@@ -12,23 +12,24 @@ router.post(
   createProduct
 );
 
-router.put("/product/:productId/add-quantity",/*isAuthenticatedUser,*/ addProductQuantity);
-router.put("/product/:productId/remove-quantity",/*isAuthenticatedUser,*/ removeProductQuantity);
-
-
 // Get all products
 router.get("/get-all-products", getAllProducts);
 
-// Get single product by ID
-router.get("/products/:id",/*isAuthenticatedUser,*/ getProductById);
-
 // Update product by ID (with image upload)
 router.put(
-  "/products/:id",
+  "/edit-product/:id",
  /*isAuthenticatedUser,*/
   upload.array("image", 5),
   updateProduct
 );
+
+router.put("/product/:productId/add-stock-quantity",/*isAuthenticatedUser,*/ addStockQuantity);
+router.put("/product/:productId/remove-stock-quantity",/*isAuthenticatedUser,*/ removeStockQuantity);
+
+// Get single product by ID
+router.get("/get-product/:id",/*isAuthenticatedUser,*/ getProductById);
+router.get("/get-product-by-name/",/*isAuthenticatedUser,*/ getProductByProductName);
+router.get("/get-product-by-size/",/*isAuthenticatedUser,*/ getProductByProductSize);
 
 // Delete product by ID
 router.delete(
@@ -42,8 +43,6 @@ router.get("/product-stats", getProductDashboardStats);
 router.post("/assign-product", assignProductToDeliveryBoy);
 
 //low stock aleart
-
-
 router.get("/low-stock/products", getLowStockProducts);
 
 module.exports = router;

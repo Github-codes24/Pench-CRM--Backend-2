@@ -1,6 +1,6 @@
 const Invoice = require("../models/invoiceModel");
 const Customer = require("../models/customerModel");
-const Subscription = require("../models/subscrptionModel");
+const Subscription = require("../models/subscriptionModel");
 const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const ErrorHandler = require("../utils/errorhandler");
 const Product = require("../models/productModel")
@@ -215,7 +215,7 @@ const Notification = require("../models/notificationModel");
 //     remainingStock: product.stock
 //   });
 // });
-const SubscriptionPlan = require("../models/subscrptionplanModel"); // Import the model
+const SubscriptionPlan = require("../models/subscriptionPlanModel"); // Import the model
 
 exports.createInvoicefri = catchAsyncErrors(async (req, res, next) => {
   const {

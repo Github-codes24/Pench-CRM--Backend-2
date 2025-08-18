@@ -8,21 +8,23 @@ const {
   getAllSubscriptionPlans,
   updateSubscription,
   createSubscriptionPlan,
-  deleteSubscription
-} = require("../controllers/subscrptionController");
+  deleteSubscription,
+  deleteSubscriptionPlan
+} = require("../controllers/subscriptionController");
 
-// ➕ Create a new subscription
-router.post("/subscription", createSubscription);
-router.put("/plans/:id", editSubscription);
+// // ➕ Create a new subscription
+// router.post("/subscription", createSubscription);
+// router.put("/plans/:id", editSubscription);
 
-router.get("/subscriptions/active", getAllSubscriptions);
+// router.get("/subscriptions/active", getAllSubscriptions);
 
 router.post("/subscription-plans", createSubscriptionPlan);
-router.get("/subscription-plans", getAllSubscriptionPlans);
+router.get("/get-all-subscription-plans", getAllSubscriptionPlans);
+router.delete("/delete-subscription-plan/:id", deleteSubscriptionPlan);
 
-router.put("/subscriptions/:id", updateSubscription);
+// router.put("/subscriptions/:id", updateSubscription);
 
-router.get("/subscriptions/details/:id", getSubscriptionById);
+// router.get("/subscriptions/details/:id", getSubscriptionById);
 
 // 📋 Get all subscriptions
 // router.get("/subscription", getAllSubscriptions);

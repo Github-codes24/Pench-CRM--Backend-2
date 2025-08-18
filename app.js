@@ -33,7 +33,7 @@ const orderRoutes = require("./routes/orderRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const getDeliveryManagementRoutes = require("./routes/deliveryMangementRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
-const subscrptionRoutes = require("./routes/subscrptionRoutes");
+const subscriptionRoutes = require("./routes/subscriptionRoutes");
 const LeadRoutes = require("./routes/leadRoutes");
 
 app.use("/api/v1", userRoutes);
@@ -45,7 +45,7 @@ app.use("/api/v1", orderRoutes);
 app.use("/api/v1", paymentRoutes);
 app.use("/api/v1", getDeliveryManagementRoutes);
 app.use("/api/v1", dashboardRoutes);
-app.use("/api/v1", subscrptionRoutes);
+app.use("/api/v1", subscriptionRoutes);
 app.use("/api/v1", LeadRoutes);
 
 // Error middleware
