@@ -67,7 +67,7 @@ exports.loginDeliveryBoy = async (req, res) => {
 // ✅ Get all delivery boys with optional filters
 exports.getAllDeliveryBoys = async (req, res) => {
   try {
-    const { name, area, phoneNumber } = req.query;
+    const { name, area, phoneNumber, page = 1, limit = 10 } = req.query;
 
     // Build filter object
     const filter = {};
@@ -75,17 +75,32 @@ exports.getAllDeliveryBoys = async (req, res) => {
     if (area) filter.area = { $regex: area, $options: "i" };
     if (phoneNumber) filter.phoneNumber = { $regex: phoneNumber, $options: "i" };
 
-    const deliveryBoys = await DeliveryBoy.find(filter);
+    // Convert page & limit to numbers
+    const pageNumber = parseInt(page, 10);
+    const limitNumber = parseInt(limit, 10);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // Fetch data with pagination
+    const [deliveryBoys, total] = await Promise.all([
+      DeliveryBoy.find(filter)
+        .skip(skip)
+        .limit(limitNumber),
+      DeliveryBoy.countDocuments(filter),
+    ]);
 
     res.status(200).json({
       success: true,
       count: deliveryBoys.length,
+      total,
+      currentPage: pageNumber,
+      totalPages: Math.ceil(total / limitNumber),
       deliveryBoys,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 // 📌 Get Single Delivery Boy
 exports.getDeliveryBoyById = async (req, res) => {

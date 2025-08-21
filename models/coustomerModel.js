@@ -26,7 +26,7 @@ const customerSchema = new mongoose.Schema(
       required: [true, "Address is required"],
     },
 
-    // ✅ Subscription products (array of objects)
+    // ✅ Subscription products
     products: [
       {
         product: {
@@ -46,11 +46,17 @@ const customerSchema = new mongoose.Schema(
         },
         deliveryDays: {
           type: String,
-          enum: ["Daily", "Alternate Days", "Monday to Friday", "Weekends ", "Custom"],
+          enum: [
+            "Daily",
+            "Alternate Days",
+            "Monday to Friday",
+            "Weekends",
+            "Custom",
+          ],
           default: "Daily",
         },
         customDeliveryDates: {
-          type: [Date], // Only if "Custom" is selected
+          type: [Date],
           default: [],
         },
         startDate: {
@@ -58,9 +64,8 @@ const customerSchema = new mongoose.Schema(
           default: Date.now,
         },
         endDate: {
-          type: Date, // Useful for fixed subscriptions
+          type: Date,
         },
-
         totalPrice: {
           type: Number,
           required: true,
@@ -68,18 +73,10 @@ const customerSchema = new mongoose.Schema(
       },
     ],
 
-    // ✅ Assigned delivery boy
     deliveryBoy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "DeliveryBoy",
     },
-
-    // // ✅ Payment details
-    // paymentMode: {
-    //   type: String,
-    //   enum: ["Cash", "UPI", "COD"],
-    //   required: [true, "Payment mode is required"],
-    // },
 
     amountPaidTillDate: {
       type: Number,
@@ -89,24 +86,18 @@ const customerSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-
-    // ✅ Delivery history
-    deliveryHistory: [
-      {
-        date: { type: Date},
-        product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
-        quantityDelivered: { type: Number, default: 0 },
-          totalPrice: {
-          type: Number,
-          required: true,
-        },
-        status: { type: String, enum: ["Delivered", "Missed", "Pending"], default: "Pending" },
-      },
-    ],
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
+
+// ✅ Virtual populate for delivery history
+customerSchema.virtual("deliveryHistory", {
+  ref: "DeliveryHistory",
+  localField: "_id",
+  foreignField: "customer",
+});
+
+customerSchema.set("toJSON", { virtuals: true });
+customerSchema.set("toObject", { virtuals: true });
 
 module.exports = mongoose.model("Customer", customerSchema);

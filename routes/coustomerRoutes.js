@@ -10,6 +10,6 @@ router.put("/:id", customerController.updateCustomer);
 router.delete("/:id", customerController.deleteCustomer);
 
 // Delivery history
-router.post("/:customerId/delivery-history", customerController.addDeliveryHistory);
+// router.post("/:customerId/delivery-history", customerController.addDeliveryHistory);
 
 module.exports = router;

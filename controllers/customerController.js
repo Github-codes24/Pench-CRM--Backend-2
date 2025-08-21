@@ -15,7 +15,7 @@ exports.createCustomer = async (req, res) => {
 exports.getCustomers = async (req, res) => {
   try {
     const customers = await Customer.find()
-      .populate("products.product", "name price")
+      .populate("products.product", "productName price size stock")
       .populate("deliveryBoy", "name phoneNumber");
     res.json({ success: true, data: customers });
   } catch (err) {
@@ -61,26 +61,3 @@ exports.deleteCustomer = async (req, res) => {
   }
 };
 
-// ➡️ Add delivery history record
-exports.addDeliveryHistory = async (req, res) => {
-  try {
-    const { customerId } = req.params;
-    const { product, quantityDelivered, totalPrice, status } = req.body;
-
-    const customer = await Customer.findById(customerId);
-    if (!customer) return res.status(404).json({ success: false, error: "Customer not found" });
-
-    customer.deliveryHistory.push({
-      date: new Date(),
-      product,
-      quantityDelivered,
-      totalPrice,
-      status: status || "Pending",
-    });
-
-    await customer.save();
-    res.json({ success: true, data: customer });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-};
