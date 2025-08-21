@@ -1,4 +1,5 @@
 const express = require("express");
+const cookieParser = require("cookie-parser");
 const app = express();
 
 const http = require("http");
@@ -6,26 +7,29 @@ const http = require("http");
 const mongoose = require("mongoose");
 const env = require("dotenv");
 env.config();
-const port = process.env.PORT || 4000;
-const cookieParser = require("cookie-parser")
+
+const port = process.env.PORT || 8000;
+
 const cors = require("cors");
-app.use(express.json())
+app.use(express.json());
 
-app.use(cookieParser())
+app.use(cookieParser());
 
-app.use(cors({
-  origin: process.env.CORS_ORIGIN,
-  credentials: true,
-  exposedHeaders: ["X-Total-Count"],
-}))
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN,
+    credentials: true,
+    exposedHeaders: ["X-Total-Count"],
+  })
+);
 
 app.use(express.json());
 
-const adminRoutes = require("./routes/adminRoutes")
+const adminRoutes = require("./routes/adminRoutes");
+const deliveryRoutes = require("./routes/deliveryBoyRoutes");
 
-
-app.use("/admin" , adminRoutes);
-
+app.use("/admin", adminRoutes);
+app.use("/api/v1", deliveryRoutes);
 
 app.get("/", (req, res) => {
   res.send("we are Pench Milk");
@@ -41,7 +45,7 @@ async function main() {
     });
 }
 
-const htttpServer = http.createServer(app);
-htttpServer.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+const httpServer = http.createServer(app);
+httpServer.listen(port, () => {
+  console.log( `Server is running on http://localhost:${port}`);
 });
