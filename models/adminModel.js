@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const validator = require("validator");
-
+const bcrypt = require("bcrypt");
 const adminSchema = new mongoose.Schema(
   {
     name: { type: String, trim: true },
@@ -63,5 +63,10 @@ const adminSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+
+adminSchema.methods.comparePassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
 
 module.exports = mongoose.model("Admin", adminSchema);

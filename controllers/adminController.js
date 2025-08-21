@@ -1,7 +1,8 @@
 const Admin = require("../models/adminModel");
 const bcrypt = require("bcrypt");
 const sendOtpEmail = require("../utils/sendMail");
-
+const adminModel = require("../models/adminModel");
+const jwt = require("jsonwebtoken")
 // ✅ Create Admin
 exports.createAdmin = async (req, res) => {
   try {
@@ -30,6 +31,52 @@ exports.createAdmin = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.ACCESS_TOKEN_SECRET, {
+    expiresIn: process.env.ACCESS_TOKEN_EXPIRY || "7d",
+  });
+};
+
+exports.loginAdmin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Find admin and select password explicitly
+    const admin = await Admin.findOne({ email }).select("+password");
+    if (!admin) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid email or password" });
+    }
+
+    // Call instance method, not Admin.comparePassword
+    const isMatch = await admin.comparePassword(password);
+    if (!isMatch) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid email or password" });
+    }
+
+    // Generate JWT token
+    const token = generateToken(admin._id);
+
+    res.status(200).json({
+      success: true,
+      token,
+      admin: {
+        id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        role: admin.role,
+        status: admin.status,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 
 // ✅ Get All Admins
 exports.getAdmins = async (req, res) => {

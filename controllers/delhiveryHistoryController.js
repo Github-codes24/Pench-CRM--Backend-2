@@ -36,14 +36,18 @@ exports.getAllDeliveries = async (req, res) => {
     if (customer) filter.customer = customer;
     if (deliveryBoy) filter.deliveryBoy = deliveryBoy;
     if (status) filter.status = status;
-    if (startDate && endDate) {
-      filter.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
-    }
+ if (startDate && endDate) {
+  let start = new Date(startDate);
+  let end = new Date(endDate);
+  end.setHours(23, 59, 59, 999); // include the whole day
+  filter.date = { $gte: start, $lte: end };
+}
+
 
     const deliveries = await DeliveryHistory.find(filter)
       .populate("customer", "name phoneNumber address")
       .populate("deliveryBoy", "name phoneNumber area")
-      .populate("product", "name price size");
+      .populate("product", "productName price size stock");
 
     res.status(200).json({ success: true, count: deliveries.length, deliveries });
   } catch (error) {
