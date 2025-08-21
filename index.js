@@ -22,9 +22,16 @@ app.use(cors({
 app.use(express.json());
 
 const adminRoutes = require("./routes/adminRoutes")
+const coustomerRoutes = require("./routes/coustomerRoutes")
+const DelhiveryBoyRoutes = require("./routes/delhiveryBoyRoutes")
+const bottleRoutes = require("./routes/bottleTransactionRoutes")
 
 
 app.use("/admin" , adminRoutes);
+app.use("/customer" , coustomerRoutes);
+app.use("/delhiveryBoy" , DelhiveryBoyRoutes);
+app.use("/bottle" , bottleRoutes);
+
 
 
 app.get("/", (req, res) => {
@@ -41,7 +48,7 @@ async function main() {
     });
 }
 
-const htttpServer = http.createServer(app);
-htttpServer.listen(port, () => {
+// const htttpServer = http.createServer(app);
+app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
