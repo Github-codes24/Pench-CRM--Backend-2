@@ -93,9 +93,9 @@ exports.updateDeliveryHistory = async (req, res) => {
     const delivery = await DeliveryHistory.findByIdAndUpdate(id, req.body, {
       new: true,
     })
-      .populate("Customer", "name phoneNumber")
-      .populate("DeliveryBoy", "name phoneNumber")
-      .populate("Product", "name price size");
+      .populate("customer", "name phoneNumber")
+      .populate("deliveryBoy", "name phoneNumber")
+      .populate("product", "productName price size");
 
     if (!delivery) {
       return res.status(404).json({ success: false, message: "Delivery record not found" });
