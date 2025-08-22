@@ -32,9 +32,9 @@ const productRoutes = require("./routes/productRoutes");
 
 app.use("/admin", adminRoutes);
 app.use("/customer", coustomerRoutes);
-app.use("/delhiveryBoy", DelhiveryBoyRoutes);
+app.use("/deliveryBoy", DelhiveryBoyRoutes);
 app.use("/bottle", bottleRoutes);
-app.use("/delhiveryHistory", delhiverHistoryRoutes);
+app.use("/deliveryHistory", delhiverHistoryRoutes);
 app.use("/product", productRoutes);
 
 app.get("/", (req, res) => {
