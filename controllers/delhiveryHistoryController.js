@@ -92,6 +92,7 @@ exports.updateDeliveryHistory = async (req, res) => {
 
     const delivery = await DeliveryHistory.findByIdAndUpdate(id, req.body, {
       new: true,
+      runValidators: true,
     })
       .populate("customer", "name phoneNumber")
       .populate("deliveryBoy", "name phoneNumber")
