@@ -27,7 +27,7 @@ exports.getCustomers = async (req, res) => {
 exports.getCustomerById = async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id)
-      .populate("products.product", "name price size")
+      .populate("products.product", "productName price size")
       .populate("deliveryBoy", "name phoneNumber");
     if (!customer) return res.status(404).json({ success: false, error: "Customer not found" });
     res.json({ success: true, data: customer });
