@@ -113,9 +113,9 @@ exports.updateDeliveryHistory = async (req, res) => {
     const delivery = await DeliveryHistory.findByIdAndUpdate(id, req.body, {
       new: true,
     })
-      .populate("Customer", "name phoneNumber")
-      .populate("DeliveryBoy", "name phoneNumber")
-      .populate("Product", "name price size");
+      .populate("customer", "name phoneNumber")
+      .populate("deliveryBoy", "name phoneNumber")
+      .populate("product", "name price size");
 
     console.log("delivery----------", delivery);
 
