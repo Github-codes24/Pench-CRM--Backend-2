@@ -9,12 +9,33 @@ exports.createProduct = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("All required fields must be filled", 400));
   }
 
+  // 🔹 Generate productCode
+  // productName ko uppercase aur spaces replace karo
+  const prefix = productName.toUpperCase().replace(/\s+/g, "-");
+
+  // us productName se related last product find karo
+  const lastProduct = await Product.findOne({ productName }).sort({
+    createdAt: -1,
+  });
+
+  let productNumber = 1;
+  if (lastProduct && lastProduct.productCode) {
+    const lastCode = lastProduct.productCode.split("-").pop(); // last number nikal lo
+    if (!isNaN(lastCode)) {
+      productNumber = parseInt(lastCode) + 1;
+    }
+  }
+
+  const productCode = `${prefix}-${String(productNumber).padStart(3, "0")}`;
+
+  // 🔹 Save product
   const product = await Product.create({
     productName,
     description,
     size,
     price: Number(price),
     stock: stock || 0,
+    productCode,
   });
 
   res.status(201).json({

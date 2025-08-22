@@ -23,6 +23,11 @@ const productSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    productCode: {
+      type: String,
+      required: [true, "Product code is required"],
+      unique: true,
+    },
   },
   { timestamps: true }
 );
