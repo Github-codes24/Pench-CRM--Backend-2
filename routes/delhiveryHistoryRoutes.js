@@ -10,10 +10,10 @@ const {
 } = require("../controllers/delhiveryHistoryController");
 
 // Create new delivery history
-router.post("/", createDeliveryHistory);
+router.post("/createdeliveryhistory", createDeliveryHistory);
 
 // Get all deliveries (with filters)
-router.get("/", getAllDeliveries);
+router.get("/getalldelivery", getAllDeliveries);
 
 // Get deliveries by customer
 router.get("/customer/:customerId", getDeliveriesByCustomer);
@@ -22,9 +22,9 @@ router.get("/customer/:customerId", getDeliveriesByCustomer);
 router.get("/deliveryBoy/:deliveryBoyId", getDeliveriesByDeliveryBoy);
 
 // Update delivery history
-router.put("/:id", updateDeliveryHistory);
+router.put("/update/:id", updateDeliveryHistory);
 
 // Delete delivery history
-router.delete("/:id", deleteDeliveryHistory);
+router.delete("/delete/:id", deleteDeliveryHistory);
 
 module.exports = router;

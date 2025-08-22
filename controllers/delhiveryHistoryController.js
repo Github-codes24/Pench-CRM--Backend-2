@@ -5,10 +5,21 @@ const DeliveryBoy = require("../models/delhiveryBoyModel");
 // ➡️ Create a new delivery history entry
 exports.createDeliveryHistory = async (req, res) => {
   try {
-    const { customer, deliveryBoy, product, quantityDelivered, totalPrice, status, remarks } = req.body;
+    const {
+      customer,
+      deliveryBoy,
+      product,
+      quantityDelivered,
+      totalPrice,
+      status,
+      remarks,
+    } = req.body;
 
     if (!customer || !product || !totalPrice) {
-      return res.status(400).json({ success: false, message: "Customer, Product and TotalPrice are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Customer, Product and TotalPrice are required",
+      });
     }
 
     const delivery = await DeliveryHistory.create({
@@ -36,20 +47,21 @@ exports.getAllDeliveries = async (req, res) => {
     if (customer) filter.customer = customer;
     if (deliveryBoy) filter.deliveryBoy = deliveryBoy;
     if (status) filter.status = status;
- if (startDate && endDate) {
-  let start = new Date(startDate);
-  let end = new Date(endDate);
-  end.setHours(23, 59, 59, 999); // include the whole day
-  filter.date = { $gte: start, $lte: end };
-}
-
+    if (startDate && endDate) {
+      let start = new Date(startDate);
+      let end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // include the whole day
+      filter.date = { $gte: start, $lte: end };
+    }
 
     const deliveries = await DeliveryHistory.find(filter)
       .populate("customer", "name phoneNumber address")
       .populate("deliveryBoy", "name phoneNumber area")
       .populate("product", "productName price size stock");
 
-    res.status(200).json({ success: true, count: deliveries.length, deliveries });
+    res
+      .status(200)
+      .json({ success: true, count: deliveries.length, deliveries });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -64,7 +76,9 @@ exports.getDeliveriesByCustomer = async (req, res) => {
       .populate("deliveryBoy", "name phoneNumber area")
       .populate("product", "name price size");
 
-    res.status(200).json({ success: true, count: deliveries.length, deliveries });
+    res
+      .status(200)
+      .json({ success: true, count: deliveries.length, deliveries });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -74,12 +88,16 @@ exports.getDeliveriesByCustomer = async (req, res) => {
 exports.getDeliveriesByDeliveryBoy = async (req, res) => {
   try {
     const { deliveryBoyId } = req.params;
-    const deliveries = await DeliveryHistory.find({ deliveryBoy: deliveryBoyId })
+    const deliveries = await DeliveryHistory.find({
+      deliveryBoy: deliveryBoyId,
+    })
       .populate("customer", "name phoneNumber address")
       .populate("deliveryBoy", "name phoneNumber area")
       .populate("product", "name price size");
 
-    res.status(200).json({ success: true, count: deliveries.length, deliveries });
+    res
+      .status(200)
+      .json({ success: true, count: deliveries.length, deliveries });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -90,6 +108,8 @@ exports.updateDeliveryHistory = async (req, res) => {
   try {
     const { id } = req.params;
 
+    console.log("id----------", id);
+
     const delivery = await DeliveryHistory.findByIdAndUpdate(id, req.body, {
       new: true,
     })
@@ -97,8 +117,12 @@ exports.updateDeliveryHistory = async (req, res) => {
       .populate("DeliveryBoy", "name phoneNumber")
       .populate("Product", "name price size");
 
+    console.log("delivery----------", delivery);
+
     if (!delivery) {
-      return res.status(404).json({ success: false, message: "Delivery record not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Delivery record not found" });
     }
 
     res.status(200).json({ success: true, delivery });
@@ -114,10 +138,14 @@ exports.deleteDeliveryHistory = async (req, res) => {
     const delivery = await DeliveryHistory.findByIdAndDelete(id);
 
     if (!delivery) {
-      return res.status(404).json({ success: false, message: "Delivery record not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Delivery record not found" });
     }
 
-    res.status(200).json({ success: true, message: "Delivery record deleted successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "Delivery record deleted successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
