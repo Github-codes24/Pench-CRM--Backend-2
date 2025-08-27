@@ -34,16 +34,27 @@ const customerSchema = new mongoose.Schema(
           ref: "Product",
           required: true,
         },
+        price: {
+          type: String,
+          required: true
+        },
+
         quantity: {
           type: Number,
           required: true,
           min: [1, "Quantity must be at least 1"],
         },
+
         subscriptionPlan: {
           type: String,
+<<<<<<< HEAD
           enum: ["Daily", "Weekly", "Monthly", "None"],
+=======
+          enum: ["Monthly", "Daily", "Alternate Days"],
+>>>>>>> dashboard
           required: true,
         },
+
         deliveryDays: {
           type: String,
           enum: [
@@ -63,6 +74,7 @@ const customerSchema = new mongoose.Schema(
           type: Date,
           default: Date.now,
         },
+
         endDate: {
           type: Date,
         },
@@ -102,7 +114,7 @@ const customerSchema = new mongoose.Schema(
 //   foreignField: "customer",
 // });
 
-customerSchema.set("toJSON", { virtuals: true });
-customerSchema.set("toObject", { virtuals: true });
+// customerSchema.set("toJSON", { virtuals: true });
+// customerSchema.set("toObject", { virtuals: true });
 
 module.exports = mongoose.model("Customer", customerSchema);

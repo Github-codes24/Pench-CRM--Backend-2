@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 
 const mongoose = require("mongoose");
 const Customer = require("../models/coustomerModel");
+const CustomerCustomOrder = require("../models/customerCustomOrder");
 const {
   formatOrderResponse,
   shouldDeliverOnDate,
@@ -169,68 +170,205 @@ exports.deleteDeliveryBoy = async (req, res) => {
   }
 };
 
-exports.getTodayOrders = async (req, res) => {
+exports.getOrders = async (req, res) => {
   try {
-    const { deliveryBoyId } = req.params;
-    const { date } = req.query;
+    const {
+      customerId,
+      deliveryBoyId,
+      date,
+      fromDate,
+      toDate,
+      productId,
+      status,
+      page = 1,
+      limit = 10
+    } = req.query;
 
-    // Validate delivery boy ID
-    if (!mongoose.Types.ObjectId.isValid(deliveryBoyId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid delivery boy ID format",
-      });
+    // Build filter object
+    const filter = {};
+    const customerFilter = {};
+    const customOrderFilter = {};
+
+    // Customer filter
+    if (customerId) {
+      if (!mongoose.Types.ObjectId.isValid(customerId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid customer ID format",
+        });
+      }
+      filter.customer = new mongoose.Types.ObjectId(customerId);
+      customerFilter._id = new mongoose.Types.ObjectId(customerId);
     }
 
-    // Set target date (today or specified date)
-    let targetDate = new Date();
+    // Delivery boy filter
+    if (deliveryBoyId) {
+      if (!mongoose.Types.ObjectId.isValid(deliveryBoyId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid delivery boy ID format",
+        });
+      }
+      filter.deliveryBoy = new mongoose.Types.ObjectId(deliveryBoyId);
+      customerFilter.deliveryBoy = new mongoose.Types.ObjectId(deliveryBoyId);
+      customOrderFilter.deliveryBoy = new mongoose.Types.ObjectId(deliveryBoyId);
+    }
+
+    // Date filtering
+    let dateFilter = {};
     if (date) {
-      targetDate = new Date(date);
+      // Single date filter
+      const targetDate = new Date(date);
       if (isNaN(targetDate.getTime())) {
         return res.status(400).json({
           success: false,
           message: "Invalid date format. Use ISO format (YYYY-MM-DD)",
         });
       }
-    }
-    targetDate.setHours(0, 0, 0, 0);
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
 
-    // Find customers with products assigned to this delivery boy
-    const customers = await Customer.find({
-      deliveryBoy: new mongoose.Types.ObjectId(deliveryBoyId),
-    })
+      dateFilter = {
+        $gte: startOfDay,
+        $lt: endOfDay
+      };
+    } else if (fromDate || toDate) {
+      // Date range filter
+      dateFilter = {};
+      if (fromDate) {
+        const from = new Date(fromDate);
+        if (isNaN(from.getTime())) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid fromDate format. Use ISO format (YYYY-MM-DD)",
+          });
+        }
+        from.setHours(0, 0, 0, 0);
+        dateFilter.$gte = from;
+      }
+      if (toDate) {
+        const to = new Date(toDate);
+        if (isNaN(to.getTime())) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid toDate format. Use ISO format (YYYY-MM-DD)",
+          });
+        }
+        to.setHours(23, 59, 59, 999);
+        dateFilter.$lte = to;
+      }
+    }
+
+    // Product filter
+    if (productId) {
+      if (!mongoose.Types.ObjectId.isValid(productId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid product ID format",
+        });
+      }
+      filter['products.product'] = new mongoose.Types.ObjectId(productId);
+      customOrderFilter.product = new mongoose.Types.ObjectId(productId);
+    }
+
+    // Status filter (for custom orders)
+    if (status) {
+      customOrderFilter.status = status;
+    }
+
+    // Pagination
+    const pageNumber = parseInt(page);
+    const pageSize = parseInt(limit);
+    const skip = (pageNumber - 1) * pageSize;
+
+    // Set target date for delivery calculation (use today if no date specified)
+    let targetDateForDelivery = new Date();
+    if (date) {
+      targetDateForDelivery = new Date(date);
+    }
+    targetDateForDelivery.setHours(0, 0, 0, 0);
+
+    // Find customers with filters
+    const customers = await Customer.find(customerFilter)
       .populate("products.product")
       .populate({
         path: "deliveryBoy",
-        select: "name phoneNumber email", // only fetch these fields
-      });
+        select: "name phoneNumber email",
+      })
+      .skip(skip)
+      .limit(pageSize);
 
-    if (!customers || customers.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No customers found for this delivery boy",
-        data: [],
-      });
-    }
+    // Find custom orders with filters
+    const customOrders = await CustomerCustomOrder.find({
+      ...customOrderFilter,
+      ...(Object.keys(dateFilter).length > 0 && { date: dateFilter })
+    })
+      .populate("customer", "name phoneNumber address userProfile gender")
+      .populate("product")
+      .populate({
+        path: "deliveryBoy",
+        select: "name phoneNumber email",
+      })
+      .skip(skip)
+      .limit(pageSize);
+
+    // Get total counts for pagination
+    const totalCustomers = await Customer.countDocuments(customerFilter);
+    const totalCustomOrders = await CustomerCustomOrder.countDocuments({
+      ...customOrderFilter,
+      ...(Object.keys(dateFilter).length > 0 && { date: dateFilter })
+    });
 
     // Format orders
-    const todayOrders = formatOrderResponse(
+    const formattedOrders = await formatOrderResponse(
       customers,
-      targetDate,
+      customOrders,
+      targetDateForDelivery,
       deliveryBoyId
     );
 
-    res.status(200).json({
+    // Prepare response
+    const response = {
       success: true,
-      message: `Orders for ${targetDate.toDateString()}`,
+      message: `Orders${date ? ` for ${targetDateForDelivery.toDateString()}` : ''}`,
       data: {
-        date: targetDate,
-        totalOrders: todayOrders.length,
-        orders: todayOrders,
-      },
-    });
+        date: targetDateForDelivery,
+        filters: {
+          customerId,
+          deliveryBoyId,
+          date,
+          fromDate,
+          toDate,
+          productId,
+          status
+        },
+        pagination: {
+          currentPage: pageNumber,
+          totalPages: Math.ceil((totalCustomers + totalCustomOrders) / pageSize),
+          totalItems: totalCustomers + totalCustomOrders,
+          pageSize,
+          hasNext: pageNumber < Math.ceil((totalCustomers + totalCustomOrders) / pageSize),
+          hasPrev: pageNumber > 1
+        },
+        summary: {
+          totalOrders: formattedOrders.customers.reduce((total, customer) => total + customer.orders.length, 0),
+          totalCustomers: formattedOrders.customers.length,
+          totalBottles: formattedOrders.totalBottlesRequired,
+          subscriptionOrders: formattedOrders.customers.reduce((total, customer) =>
+            total + customer.orders.filter(order => order.orderType === 'subscription').length, 0),
+          customOrders: formattedOrders.customers.reduce((total, customer) =>
+            total + customer.orders.filter(order => order.orderType === 'custom').length, 0)
+        },
+        customers: formattedOrders.customers,
+        bottleSummary: formattedOrders.bottleSummary
+      }
+    };
+
+    res.status(200).json(response);
   } catch (error) {
-    console.error("Error fetching today orders:", error);
+    console.error("Error fetching orders:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -321,6 +459,9 @@ exports.getOrdersByDateRange = async (req, res) => {
     });
   }
 };
+
+
+
 
 // Get order statistics for delivery boy
 // exports.getOrderStatistics = async (req, res) => {

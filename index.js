@@ -29,10 +29,15 @@ const DelhiveryBoyRoutes = require("./routes/delhiveryBoyRoutes");
 const bottleRoutes = require("./routes/bottleTransactionRoutes");
 const delhiverHistoryRoutes = require("./routes/delhiveryHistoryRoutes");
 const productRoutes = require("./routes/productRoutes");
+
 const CreateInvoiceRoutes = require("./routes/customInvoiceRoute");
 const customerInvoce = require("./routes/customerInvoce");
 const dashBoardRoute = require("./routes/dashboardRoute");
 
+
+
+const customOrderRoutes = require("./routes/customCoustomerRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes")
 
 
 app.use("/admin", adminRoutes);
@@ -41,9 +46,14 @@ app.use("/deliveryBoy", DelhiveryBoyRoutes);
 app.use("/bottle", bottleRoutes);
 app.use("/deliveryHistory", delhiverHistoryRoutes);
 app.use("/product", productRoutes);
+
 app.use("/invoice", CreateInvoiceRoutes);
 app.use("/customers", customerInvoce);
 app.use("/dashboard", dashBoardRoute);
+
+
+app.use("/customOrder", customOrderRoutes);
+app.use("/dashboard", dashboardRoutes);
 
 
 app.get("/", (req, res) => {

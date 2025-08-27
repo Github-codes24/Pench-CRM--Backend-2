@@ -5,6 +5,8 @@ const Invoice = require("../models/invoicesModel");
 const generateInvoiceNumber = require("../utils/generateInvoiceNumber");
 const { formatDate } = require("../utils/dateUtils");
 const { processCustomerInvoice } = require("../service/invoiceService");
+const { generateInvoicePDF } = require("../service/pdfService");
+const { uploadBufferToCloudinary } = require("../service/cloudinaryService");
 
 exports.allCustomerInvoices = catchAsyncErrors(async (req, res, next) => {
   let {
@@ -130,36 +132,63 @@ exports.generateInvoiceForCustomer = async (req, res, next) => {
     const subtotal = productsArray.reduce((acc, p) => acc + p.total, 0);
     const totalAmount = subtotal;
 
-    // Generate invoice number
-    const invoiceNumber = generateInvoiceNumber();
+    // 🔹 Check if invoice already exists for this customer
+    let invoice = await Invoice.findOne({ customer: customer._id });
 
-    // Create invoice in DB
-    const invoice = await Invoice.create({
-      invoiceNumber,
-      customer: customer._id,
-      totalAmount,
-      subTotal: subtotal,
-      issueDate: new Date(),
-      status: "Unpaid",
-    });
-    await invoice.save();
-    // Prepare payload for frontend
+    if (invoice) {
+      // Update existing invoice
+      invoice.totalAmount = totalAmount;
+      invoice.subTotal = subtotal;
+      invoice.status = "Unpaid";
+      invoice.issueDate = new Date();
+      await invoice.save();
+    } else {
+      // Create new invoice with unique invoice number
+      const invoiceNumber = generateInvoiceNumber();
+      invoice = await Invoice.create({
+        invoiceNumber,
+        customer: customer._id,
+        totalAmount,
+        subTotal: subtotal,
+        issueDate: new Date(),
+        status: "Unpaid",
+      });
+    }
+
+    // Prepare payload (ye PDF me jayega)
     const payload = {
-      invoiceNumber,
+      invoiceNumber: invoice.invoiceNumber,
       customerName: customer.name,
       customerAddress: customer.address,
       DairyAddress,
       GST: defaultGST,
-      issueDate: formatDate(new Date()),
+      issueDate: formatDate(invoice.issueDate),
       products: productsArray,
       subtotal,
       totalAmount,
-      status: "Unpaid",
+      status: invoice.status,
     };
 
+    // 🔹 Generate PDF
+    const pdfBuffer = await generateInvoicePDF(payload);
+
+    // 🔹 Upload to Cloudinary
+    const cloudResult = await uploadBufferToCloudinary(
+      pdfBuffer,
+      `invoice_${invoice.invoiceNumber}`
+    );
+
+    // 🔹 Save PDF URL in DB
+    invoice.pdfUrl = cloudResult.secure_url;
+    await invoice.save();
+
+    // Final response
     res.status(200).json({
       success: true,
-      invoice: payload,
+      invoice: {
+        ...payload,
+        pdfUrl: invoice.pdfUrl,
+      },
     });
   } catch (err) {
     next(

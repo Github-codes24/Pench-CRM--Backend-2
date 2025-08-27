@@ -150,7 +150,7 @@ exports.forgotPassword = async (req, res) => {
     await admin.save();
 
     // Send OTP via email (basic transporter)
-   await sendOtpEmail(email, otp);
+  //  await sendOtpEmail(email, otp);
 
     res.json({ success: true, message: "OTP sent to email" ,otp:otp });
   } catch (error) {

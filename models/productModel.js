@@ -6,18 +6,17 @@ const productSchema = new mongoose.Schema(
       type: String,
       required: [true, "Product name is required"],
     },
+
     description: {
       type: String,
       required: [true, "Description is required"],
     },
     size: {
-      type: String,
+      type:String, // 🔹 multiple sizes allowed
       required: true,
-      enum: ["250gm", "500gm", "1kg", "1/2ltr", "1ltr", "1/4ltr"], // allowed sizes
     },
-    price: {
-      type: Number,
-      required: [true, "Price is required"],
+    price:{
+      type:Number
     },
     stock: {
       type: Number,
@@ -26,7 +25,7 @@ const productSchema = new mongoose.Schema(
     productCode: {
       type: String,
       required: [true, "Product code is required"],
-      unique: true,
+      unique: true, // 🔹 always unique
     },
   },
   { timestamps: true }

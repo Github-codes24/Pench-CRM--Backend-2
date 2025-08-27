@@ -3,11 +3,13 @@ const router = express.Router();
 const customerController = require("../controllers/customerController");
 
 // CRUD routes
-router.post("/", customerController.createCustomer);
-router.get("/", customerController.getCustomers);
-router.get("/:id", customerController.getCustomerById);
-router.put("/:id", customerController.updateCustomer);
-router.delete("/:id", customerController.deleteCustomer);
+router.post("/createCustomer", customerController.createCustomer);
+router.get("/getAllCustomers", customerController.getAllCustomers);
+router.get("/getCustomerById/:id", customerController.getCustomerById);
+router.put("/update/:id", customerController.updateCustomer);
+router.delete("/delete/:id", customerController.deleteCustomer);
+router.post("/makeAbsentDays/:id", customerController.makeAbsentDays);
+router.post("/makeCustomOrders", customerController.createCustomOrder);
 
 
 // Delivery history

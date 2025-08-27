@@ -57,6 +57,11 @@ exports.getAllProducts = catchAsyncErrors(async (req, res) => {
     limit,
   } = req.query;
 
+  const pageNumber = Number(page) || 1;
+  const pageSize = Number(limit) || 10;
+  const skip = (pageNumber - 1) * pageSize;
+
+  // Build filter for both queries
   const filter = {};
   if (productName) filter.productName = { $regex: productName, $options: "i" };
   if (size) filter.size = size;
@@ -66,10 +71,6 @@ exports.getAllProducts = catchAsyncErrors(async (req, res) => {
     if (maxPrice) filter.price.$lte = Number(maxPrice);
   }
 
-  const pageNumber = Number(page) || 1;
-  const pageSize = Number(limit) || 10;
-  const skip = (pageNumber - 1) * pageSize;
-
   let sort = {};
   if (sortBy) {
     sort[sortBy] = sortOrder === "desc" ? -1 : 1;
@@ -77,6 +78,7 @@ exports.getAllProducts = catchAsyncErrors(async (req, res) => {
     sort = { createdAt: -1 };
   }
 
+  // Get individual products
   const products = await Product.find(filter)
     .sort(sort)
     .skip(skip)
@@ -84,15 +86,67 @@ exports.getAllProducts = catchAsyncErrors(async (req, res) => {
 
   const total = await Product.countDocuments(filter);
 
+  // Get grouped products (without pagination for grouping)
+  const groupedProducts = await Product.aggregate([
+  { $match: filter },
+  {
+    $addFields: {
+      // Normalize product name: trim whitespace and convert to lowercase for grouping
+      normalizedProductName: {
+        $trim: { input: { $toLower: "$productName" } }
+      }
+    }
+  },
+  {
+    $group: {
+      _id: "$normalizedProductName", // Group by normalized name
+      productName: { $first: "$productName" }, // Keep original name for display
+      originalNames: { $addToSet: "$productName" }, // Track all original names
+      description: { $first: "$description" },
+      productType: { $first: "$productType" },
+      sizes: {
+        $push: {
+          _id: "$_id",
+          size: "$size",
+          price: "$price",
+          stock: "$stock",
+          productCode: "$productCode"
+        }
+      },
+      totalVariants: { $sum: 1 },
+      minPrice: { $min: "$price" },
+      maxPrice: { $max: "$price" },
+      avgPrice: { $avg: "$price" },
+      stockTotal: { $sum: "$stock" }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      normalizedName: "$_id",
+      productName: 1,
+      originalNames: 1,
+      description: 1,
+      productType: 1,
+      sizes: 1,
+      totalVariants: 1,
+      minPrice: 1,
+      maxPrice: 1,
+      avgPrice: 1,
+      stockTotal: 1
+    }
+  },
+  { $sort: { productName: 1 } }
+]);
   res.status(200).json({
     success: true,
     count: products.length,
     totalPages: Math.ceil(total / pageSize),
     currentPage: pageNumber,
-    products,
+    individualProducts: products,
+    groupedProducts: groupedProducts,
   });
 });
-
 exports.getProductById = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
   const product = await Product.findById(id);

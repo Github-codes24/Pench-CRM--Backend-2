@@ -6,7 +6,7 @@ const {
   getDeliveryBoyById,
   updateDeliveryBoy,
   deleteDeliveryBoy,
-  getTodayOrders,
+  getOrders,
   getOrdersByDateRange,
   getOrderStatistics
 } = require("../controllers/delhiveryBoyController");
@@ -22,7 +22,7 @@ router.put("/update/:id", updateDeliveryBoy);
 router.delete("/delete/:id", deleteDeliveryBoy);
 
 // Order routes
-router.get('/todayOrder/:deliveryBoyId', getTodayOrders);
+router.get('/getOrders', getOrders);
 router.get('/range/:deliveryBoyId', getOrdersByDateRange);
 // router.get('/stats/:deliveryBoyId', getOrderStatistics);
 

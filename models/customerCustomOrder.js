@@ -6,7 +6,7 @@ const customerCustomSchema = new mongoose.Schema(
       ref: "Customer",
       required: true,
     },
-      date: {
+    date: {
       type: Date,
       default: Date.now,
     },
@@ -17,6 +17,9 @@ const customerCustomSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
       required: true,
+    },
+    price:{
+      type:String
     },
     totalPrice: {
       type: Number,
