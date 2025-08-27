@@ -19,7 +19,11 @@ const bottleTransactionSchema = new mongoose.Schema(
     // ✅ Returned bottles by size
     returned: [
       {
-        size: { type: String, enum: ["0.5L", "1L"], required: true },
+        size: {
+          type: String,
+          enum: ["0.5L", "1L"],
+          required: true
+        },
         count: { type: Number, default: 0 },
       },
     ],

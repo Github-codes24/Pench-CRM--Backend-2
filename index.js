@@ -31,6 +31,9 @@ const delhiverHistoryRoutes = require("./routes/delhiveryHistoryRoutes");
 const productRoutes = require("./routes/productRoutes");
 const CreateInvoiceRoutes = require("./routes/customInvoiceRoute");
 const customerInvoce = require("./routes/customerInvoce");
+const dashBoardRoute = require("./routes/dashboardRoute");
+
+
 
 app.use("/admin", adminRoutes);
 app.use("/customer", coustomerRoutes);
@@ -40,6 +43,8 @@ app.use("/deliveryHistory", delhiverHistoryRoutes);
 app.use("/product", productRoutes);
 app.use("/invoice", CreateInvoiceRoutes);
 app.use("/customers", customerInvoce);
+app.use("/dashboard", dashBoardRoute);
+
 
 app.get("/", (req, res) => {
   res.send("we are Pench Milk");

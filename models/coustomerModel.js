@@ -41,7 +41,7 @@ const customerSchema = new mongoose.Schema(
         },
         subscriptionPlan: {
           type: String,
-          enum: ["Daily", "Weekly", "Monthly","None"],
+          enum: ["Daily", "Weekly", "Monthly", "None"],
           required: true,
         },
         deliveryDays: {
@@ -73,7 +73,7 @@ const customerSchema = new mongoose.Schema(
       },
     ],
 
-    absentDays : {
+    absentDays: {
       type: [Date],
       default: [],
     },
