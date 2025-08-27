@@ -1,17 +1,16 @@
 const express = require("express");
 const router = express.Router();
 const {
-  getAllSales,
+  TotalSales,
   getLowStockProducts,
   getActiveSubscriptions,
-  getSalesSummary,
-  getTopProducts
+  getTopAndLowestProducts,
 } = require("../controllers/dashboardController");
 
 // Sales Routes
-router.get("/sales", getAllSales);
-router.get("/sales/summary", getSalesSummary);
-router.get("/sales/top-products", getTopProducts);
+router.get("/total-sales", TotalSales);
+
+router.get("/top-lowest/product", getTopAndLowestProducts);
 
 // Inventory Routes
 router.get("/inventory/low-stock", getLowStockProducts);
