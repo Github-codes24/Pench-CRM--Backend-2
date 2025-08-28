@@ -47,11 +47,7 @@ const customerSchema = new mongoose.Schema(
 
         subscriptionPlan: {
           type: String,
-<<<<<<< HEAD
-          enum: ["Daily", "Weekly", "Monthly", "None"],
-=======
           enum: ["Monthly", "Daily", "Alternate Days"],
->>>>>>> dashboard
           required: true,
         },
 
