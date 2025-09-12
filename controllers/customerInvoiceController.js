@@ -11,7 +11,6 @@ const {
 const { calculateFullPeriodAmount } = require("../helper/helperFuctions");
 const DeliveryBoy = require("../models/deliveryBoyModel");
 const moment = require("moment");
-// ✅ Create Invoice
 const createCustomerInvoice = async (req, res) => {
   try {
     const {
@@ -23,7 +22,6 @@ const createCustomerInvoice = async (req, res) => {
       partialPayment,
     } = req.body;
 
-    // Validation
     if (
       !customer ||
       !period ||
@@ -171,7 +169,6 @@ const createCustomerInvoice = async (req, res) => {
   }
 };
 
-// ✅ Get All Customer Invoices
 const getAllCustomerInvoices = async (req, res) => {
   try {
     let {
@@ -189,7 +186,6 @@ const getAllCustomerInvoices = async (req, res) => {
 
     let matchStage = {};
 
-    // 📅 Date filter
     if (startDate && endDate) {
       matchStage["period.startDate"] = {
         $gte: new Date(startDate),
@@ -201,7 +197,6 @@ const getAllCustomerInvoices = async (req, res) => {
       matchStage["period.endDate"] = { $lte: new Date(endDate) };
     }
 
-    // 🔍 Search filter
     if (search) {
       const searchRegex = new RegExp(search, "i");
       if (!isNaN(search)) {
@@ -211,7 +206,7 @@ const getAllCustomerInvoices = async (req, res) => {
           { "products.productName": searchRegex },
           { "products.productSize": searchRegex },
           { phoneNumber: Number(search) },
-          { "customerData.name": searchRegex }, // ✅ search by customer name
+          { "customerData.name": searchRegex },
         ];
       } else {
         matchStage.$or = [
@@ -219,19 +214,17 @@ const getAllCustomerInvoices = async (req, res) => {
           { subscriptionPlan: searchRegex },
           { "products.productName": searchRegex },
           { "products.productSize": searchRegex },
-          { "customerData.name": searchRegex }, // ✅ search by customer name
+          { "customerData.name": searchRegex },
         ];
       }
     }
 
-    // 📊 Sorting
     const sortStage = { createdAt: sortOrder === "asc" ? 1 : -1 };
 
-    // 📦 Aggregation pipeline
     const invoices = await Invoice.aggregate([
       {
         $lookup: {
-          from: "customers", // collection name
+          from: "customers",
           localField: "customer",
           foreignField: "_id",
           as: "customerData",
@@ -246,7 +239,9 @@ const getAllCustomerInvoices = async (req, res) => {
           as: "deliveryBoyData",
         },
       },
-      { $unwind: { path: "$deliveryBoyData", preserveNullAndEmptyArrays: true } },
+      {
+        $unwind: { path: "$deliveryBoyData", preserveNullAndEmptyArrays: true },
+      },
       { $match: matchStage },
       { $sort: sortStage },
       { $skip: skip },
@@ -281,9 +276,12 @@ const getAllCustomerInvoices = async (req, res) => {
       pdfUrl: invoice?.pdfUrl,
       deliveryBoy: invoice?.deliveryBoyData?.name || "N/A",
       period: {
-        startDate: invoice?.period?.startDate ?
-        moment(invoice?.period?.startDate).format("DD/MM/YYYY") : null,
-        endDate: invoice?.period?.endDate ? moment(invoice?.period?.endDate).format("DD/MM/YYYY") : null,
+        startDate: invoice?.period?.startDate
+          ? moment(invoice?.period?.startDate).format("DD/MM/YYYY")
+          : null,
+        endDate: invoice?.period?.endDate
+          ? moment(invoice?.period?.endDate).format("DD/MM/YYYY")
+          : null,
       },
       createdAt: invoice?.createdAt,
     }));
@@ -308,9 +306,6 @@ const getAllCustomerInvoices = async (req, res) => {
   }
 };
 
-
-
-// ✅ Search Customers
 const searchCustomers = async (req, res) => {
   try {
     const { customerName, phoneNumber } = req.query;
@@ -378,7 +373,6 @@ const searchCustomers = async (req, res) => {
   }
 };
 
-// ✅ Get Customer Data
 const getCustomerData = async (req, res) => {
   try {
     const { customerId } = req.params;
@@ -405,7 +399,6 @@ const getCustomerData = async (req, res) => {
       });
     }
 
-    // Check for existing invoices to determine the correct start date
     const existingInvoices = await Invoice.find({
       customer: customerId,
     }).sort({ issueDate: -1 });
@@ -421,18 +414,17 @@ const getCustomerData = async (req, res) => {
     } else if (endDate) {
       if (existingInvoices.length > 0) {
         const lastInvoice = existingInvoices[0];
-        // If previous invoice is unpaid, include previous month orders
         if (
-          lastInvoice.paymentStatus === "Unpaid" ||
-          lastInvoice.paymentStatus === "Partially Paid"
+          lastInvoice.payment?.status === "Unpaid" ||
+          lastInvoice.payment?.status === "Partially Paid"
         ) {
           start =
-            parseUniversalDate(lastInvoice.period.startDate) ||
-            new Date(lastInvoice.period.startDate);
+            parseUniversalDate(lastInvoice.period?.startDate) ||
+            new Date(lastInvoice.period?.startDate);
         } else {
           start =
-            parseUniversalDate(lastInvoice.period.endDate) ||
-            new Date(lastInvoice.period.endDate);
+            parseUniversalDate(lastInvoice.period?.endDate) ||
+            new Date(lastInvoice.period?.endDate);
         }
       } else {
         start =
@@ -444,30 +436,60 @@ const getCustomerData = async (req, res) => {
       if (existingInvoices.length > 0) {
         const lastInvoice = existingInvoices[0];
         if (
-          lastInvoice.paymentStatus === "Unpaid" ||
-          lastInvoice.paymentStatus === "Partially Paid"
+          lastInvoice.payment?.status === "Unpaid" ||
+          lastInvoice.payment?.status === "Partially Paid"
         ) {
           start =
-            parseUniversalDate(lastInvoice.startDate) ||
-            new Date(lastInvoice.startDate);
+            parseUniversalDate(lastInvoice.period?.startDate) ||
+            new Date(lastInvoice.period?.startDate);
         } else {
           start =
-            parseUniversalDate(lastInvoice.endDate) ||
-            new Date(lastInvoice.endDate);
+            parseUniversalDate(lastInvoice.period?.endDate) ||
+            new Date(lastInvoice.period?.endDate);
         }
         end = new Date();
       } else {
-        start =
-          parseUniversalDate(customer.startDate) ||
+        const customerStartDate =
+          parseUniversalDate(customer?.startDate) ||
           new Date(customer.startDate);
-        end = new Date();
+        const now = new Date();
+
+        if (customerStartDate > now) {
+          start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          end = now;
+        } else {
+          start = customerStartDate;
+          end = now;
+        }
       }
+    }
+
+    if (!start || isNaN(start.getTime())) {
+      start = new Date();
+    }
+    if (!end || isNaN(end.getTime())) {
+      end = new Date();
+    }
+
+    if (start > end) {
+      const temp = start;
+      start = end;
+      end = temp;
     }
 
     const customerStartDate =
       parseUniversalDate(customer.startDate) || new Date(customer.startDate);
-    const effectiveStartDate =
-      start < customerStartDate ? customerStartDate : start;
+
+    const now = new Date();
+    let effectiveStartDate = start;
+
+    if (start > now) {
+      effectiveStartDate = now;
+    }
+
+    if (end > now || end.getTime() === effectiveStartDate.getTime()) {
+      end = now;
+    }
 
     let finalStartDate = effectiveStartDate;
     let finalEndDate = end;
@@ -481,7 +503,7 @@ const getCustomerData = async (req, res) => {
 
       finalEndDate = new Date(
         effectiveStartDate.getTime() +
-        (partialPaymentDays - 1) * (1000 * 3600 * 24)
+          (partialPaymentDays - 1) * (1000 * 3600 * 24)
       );
       isPartialPayment = true;
     }
@@ -537,36 +559,32 @@ const getCustomerData = async (req, res) => {
       0
     );
 
-    // Calculate actual orders count
     const actualOrders = orders.length;
 
-    // Calculate absent days
     const absentDays = [];
     const startDateForAbsent =
       parseUniversalDate(startDateStr) || new Date(startDateStr);
     const endDateForAbsent =
       parseUniversalDate(endDateStr) || new Date(endDateStr);
 
-    // Generate all dates in the range
     const allDates = [];
     const currentDate = new Date(startDateForAbsent);
+
     while (currentDate <= endDateForAbsent) {
       allDates.push(formatDateToDDMMYYYY(new Date(currentDate)));
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    // Find absent days (dates with no orders)
     const orderDates = orders.map((order) => order.deliveryDate);
+
     allDates.forEach((date) => {
       if (!orderDates.includes(date)) {
         absentDays.push(new Date(parseUniversalDate(date) || new Date(date)));
       }
     });
 
-    // Calculate deliveries (actual orders - absent days)
     const deliveries = actualOrders;
 
-    // Get previous unpaid invoices for carry-forward
     const previousUnpaidInvoices = await Invoice.find({
       customer: customerId,
       paymentStatus: { $in: ["Unpaid", "Partially Paid"] },
@@ -579,7 +597,6 @@ const getCustomerData = async (req, res) => {
       0
     );
 
-    // Calculate partial payment amounts
     let partialPaymentAmount = totalAmount;
     let balanceAmount = 0;
 
@@ -619,14 +636,13 @@ const getCustomerData = async (req, res) => {
         actualOrders,
         absentDays: absentDays.length,
         deliveries,
-        absentDaysList: absentDays.map((date) => formatDateToDDMMYYYY(date)),
       },
       partialPayment: isPartialPayment
         ? {
-          partialPaymentAmount,
-          partialPaymentDays,
-          balanceAmount,
-        }
+            partialPaymentAmount,
+            partialPaymentDays,
+            balanceAmount,
+          }
         : false,
     });
   } catch (error) {

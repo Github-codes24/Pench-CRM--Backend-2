@@ -19,8 +19,8 @@ const customerSchema = new mongoose.Schema(
     },
     image: {
       type: String,
-     default:
-     "https://static.vecteezy.com/system/resources/previews/020/911/740/non_2x/user-profile-icon-profile-avatar-user-icon-male-icon-face-icon-profile-icon-free-png.png",
+      default:
+        "https://static.vecteezy.com/system/resources/previews/020/911/740/non_2x/user-profile-icon-profile-avatar-user-icon-male-icon-face-icon-profile-icon-free-png.png",
     },
     address: {
       type: String,
@@ -42,15 +42,15 @@ const customerSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
-    
+
     startDate: {
       type: String,
-      default: Date.now,
+      default: () => new Date().toISOString().split("T")[0], // YYYY-MM-DD format
     },
 
     endDate: {
       type: String,
-      default: Date.now,
+      default: () => new Date().toISOString().split("T")[0], // YYYY-MM-DD format
     },
 
     // ✅ Subscription products
@@ -63,11 +63,11 @@ const customerSchema = new mongoose.Schema(
         },
         price: {
           type: String,
-          required: true
+          required: true,
         },
         productSize: {
           type: String,
-          required: true
+          required: true,
         },
 
         quantity: {
@@ -100,35 +100,31 @@ const customerSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    customerStatus:{
-      type:String,
-      enum:["Active","Inactive"],
-      default:"Active"
+    customerStatus: {
+      type: String,
+      enum: ["Active", "Inactive"],
+      default: "Active",
     },
-    paymentMethod:{
-      type:String,
-      enum:["COD","Online"],
-      default:"COD",
-  
+    paymentMethod: {
+      type: String,
+      enum: ["COD", "Online"],
+      default: "COD",
     },
-    paymentStatus:{
-      type:String,
-      enum:["Paid","Partially Paid","Unpaid"],
-      default:"Unpaid"
-    
+    paymentStatus: {
+      type: String,
+      enum: ["Paid", "Partially Paid", "Unpaid"],
+      default: "Unpaid",
     },
-    isVerified:{
-      type:Boolean,
-      default:false
+    isVerified: {
+      type: Boolean,
+      default: false,
     },
-    isDeleted:{
-      type:Boolean,
-      default:false
-    }
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
-
-
 
 module.exports = mongoose.model("Customer", customerSchema);
