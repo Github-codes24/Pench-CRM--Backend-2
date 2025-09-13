@@ -59,7 +59,7 @@ const invoiceSchema = new mongoose.Schema(
       },
       method: {
         type: String,
-        enum: ["COD", "UPI"],
+        enum: ["COD", "Online"],
         default: "COD",
       },
       amount: { type: Number, default: 0 },

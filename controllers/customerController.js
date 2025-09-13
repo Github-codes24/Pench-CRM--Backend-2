@@ -413,27 +413,30 @@ const getCustomerById = async (req, res) => {
       paymentStatus: customer.paymentStatus,
     };
 
-    // ---- Build order filter ----
     let orderFilter = { customer: id };
 
     if (from || to) {
-      orderFilter.deliveryDate = {};
+      const fromDate = from ? parseUniversalDate(from) : null;
+      const toDate = to ? parseUniversalDate(to) : null;
 
-      if (from) {
-        // Convert dd/mm/yyyy → Date
-        const [fDay, fMonth, fYear] = from.split("/");
-        orderFilter.deliveryDate.$gte = `${fDay}/${fMonth}/${fYear}`;
-      }
-      if (to) {
-        const [tDay, tMonth, tYear] = to.split("/");
-        orderFilter.deliveryDate.$lte = `${tDay}/${tMonth}/${tYear}`;
+      if (fromDate && toDate) {
+        orderFilter.deliveryDate = {
+          $gte: formatDateToDDMMYYYY(fromDate),
+          $lte: formatDateToDDMMYYYY(toDate),
+        };
+      } else if (fromDate) {
+        orderFilter.deliveryDate = {
+          $gte: formatDateToDDMMYYYY(fromDate),
+        };
+      } else if (toDate) {
+        orderFilter.deliveryDate = {
+          $lte: formatDateToDDMMYYYY(toDate),
+        };
       }
     }
 
-    // ---- Count total orders ----
     const totalOrders = await CustomerOrders.countDocuments(orderFilter);
 
-    // ---- Fetch paginated orders ----
     const orders = await CustomerOrders.find(orderFilter)
       .select("orderNumber deliveryDate status products")
       .sort({ createdAt: -1 })
@@ -456,13 +459,11 @@ const getCustomerById = async (req, res) => {
       })),
     }));
 
-    // ---- Pagination info ----
     const totalPages = Math.ceil(totalOrders / limit);
     const hasPrevious = page > 1;
     const hasNext = page < totalPages;
 
-    // ---- Final response ----
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Customer by Id fetched successfully",
       data: {
@@ -477,7 +478,7 @@ const getCustomerById = async (req, res) => {
     });
   } catch (error) {
     console.error("getCustomerById Error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Error fetching customer",
       error: error.message,

@@ -17,7 +17,7 @@ const registerDeliveryBoy = async (req, res) => {
     const { name, email, phoneNumber, area, password, address } = req.body;
     const profileImage = req.file.path;
 
-    if (!name || email || phoneNumber || area || password || address) {
+    if (!name || !email || !phoneNumber || !area || !password || !address) {
       return res.status(400).json({
         success: false,
         message: "All fields are required",
@@ -65,6 +65,12 @@ const loginDeliveryBoy = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+      });
+    }
     // Fetch password explicitly (since select:false is set for password)
     const deliveryBoy = await DeliveryBoy.findOne({ email }).select(
       "+password"
@@ -222,6 +228,7 @@ const getDeliveryBoyById = async (req, res) => {
         password: plainPassword, // ✅ Plaintext password
         phoneNumber: deliveryBoy.phoneNumber,
         area: deliveryBoy.area,
+        address: deliveryBoy.address || "",
         profileImage: deliveryBoy.profileImage,
         isDeleted: deliveryBoy.isDeleted,
         createdAt: deliveryBoy.createdAt,
@@ -276,7 +283,7 @@ const updateDeliveryBoy = async (req, res) => {
         .json({ success: false, message: "Invalid delivery boy ID." });
     }
 
-    const { name, email, phoneNumber, area, password } = req.body;
+    const { name, email, phoneNumber, area, password, address } = req.body;
     const profileImage = req?.file?.path;
 
     // Fetch existing delivery boy
@@ -294,6 +301,7 @@ const updateDeliveryBoy = async (req, res) => {
     if (email) deliveryBoy.email = email;
     if (phoneNumber) deliveryBoy.phoneNumber = phoneNumber;
     if (area) deliveryBoy.area = area;
+    if (address) deliveryBoy.address = address;
     if (profileImage) deliveryBoy.profileImage = profileImage;
 
     if (password) {

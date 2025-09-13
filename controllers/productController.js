@@ -32,17 +32,32 @@ const createProduct = async (req, res) => {
       });
     }
 
-    // ✅ Normalize size into array & remove duplicates
-    let normalizeSize = Array.isArray(size) ? size : [size];
-    normalizeSize = [...new Set(normalizeSize.map((s) => s.trim()))]; // unique values only
+    // ✅ Normalize size 
+    let normalizeSize = size.replace(/\s+/g, "").toLowerCase();
+
+     // ✅ Validation: only allow formats ending with ltr, gm, or kg
+     const sizePattern = /^\d+(ltr|gm|kg)$/; // e.g. 2ltr, 500gm, 1kg
+     if (!sizePattern.test(normalizeSize)) {
+       return res.status(400).json({
+         success: false,
+         message:
+           "Invalid size format. Allowed formats: e.g. '2ltr', '500gm', '1kg'",
+       });
+     }
 
     // ✅ Check for duplicate product (same productName + same size)
     const duplicateProduct = await Product.findOne({
       productName,
-      size: { $in: normalizeSize },
+      size: normalizeSize,
       isDeleted: false,
     });
 
+    if(!sizePattern.test(normalizeSize)){
+        return res.status(400).json({
+            success: false,
+            message: `Invalid size. Use: ${allowedsizes.join(", ")}`,
+          });
+    }
     if (duplicateProduct) {
       return res.status(400).json({
         success: false,
@@ -197,14 +212,42 @@ const updateProduct = async (req, res) => {
     const productImage = req?.file;
 
     // Build update object dynamically
-    const updateData = {
-      ...(productName && { productName }),
-      ...(description && { description }),
-      ...(size && { size }),
-      ...(price && { price: Number(price) }),
-      ...(stock !== undefined && { stock }),
-      ...(productImage && { productImage: productImage.path }),
-    };
+    const updateData ={}
+    if(productName) updateData.productName = productName
+    if(description) updateData.description = description
+    if(size){
+      const normalizeSize = size.replace(/\s+/g, "").toLowerCase();
+        // ✅ Validate size format
+        const sizePattern = /^\d+(ltr|gm|kg)$/;
+        if (!sizePattern.test(normalizeSize)) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Invalid size format. Allowed formats: e.g. '2ltr', '500gm', '1kg'",
+          });
+        }
+  
+        updateData.size = normalizeSize;
+        
+      // ✅ Check for duplicate product (same productName + same size )
+      const duplicateProduct = await Product.findOne({
+        _id: { $ne: id },
+        productName: productName || undefined,
+        size: normalizeSize,
+        isDeleted: false,
+      });
+
+      if (duplicateProduct) {
+        return res.status(400).json({
+          success: false,
+          message: `Product with same name and size already exists`,
+        });
+      }
+
+    }
+    if(price) updateData.price = price
+    if(stock) updateData.stock = stock
+    if(productImage) updateData.productImage = productImage.path
 
     // ⚡ Single DB call, no validation re-run
     const updatedProduct = await Product.findByIdAndUpdate(id, updateData, {

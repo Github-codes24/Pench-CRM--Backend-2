@@ -13,7 +13,7 @@ const razorpay = new Razorpay({
 const createPaymentForCustomer = async (req, res) => {
     try {
       const { customerId } = req.params;
-      const { wantToPay, paymentMethod, paidAmount, note } = req.body;
+      const { wantToPay, paymentMethod, paidAmount} = req.body;
   
       // 🔍 Find customer
       const customer = await Customer.findById(customerId);
@@ -46,7 +46,7 @@ const createPaymentForCustomer = async (req, res) => {
       }
   
       // ✅ Calculate total payable from all CustomerOrders
-      const allOrders = await CustomerOrders.find({ customer: customerId });
+      const allOrders = await CustomerOrders.find({ customer: customerId, status:"Delivered" });
       const totalAmount = allOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
   
       if (paidAmount > totalAmount) {
@@ -90,7 +90,6 @@ const createPaymentForCustomer = async (req, res) => {
         paidAmount,
         balanceAmount: totalAmount - paidAmount,
         paidDate: new Date(),
-        note: note || "",
         paymentMethod,
         paymentStatus:
           paidAmount < totalAmount ? "Partially Paid" : "Paid",

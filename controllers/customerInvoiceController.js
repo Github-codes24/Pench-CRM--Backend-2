@@ -172,16 +172,20 @@ const getAllCustomerInvoices = async (req, res) => {
     const skip = (page - 1) * limit;
 
     let matchStage = {};
-
+    
     if (startDate && endDate) {
-      matchStage["period.startDate"] = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
-      };
+      const startDateObj = parseUniversalDate(startDate) || new Date(startDate);
+      const endDateObj = parseUniversalDate(endDate) || new Date(endDate);
+      matchStage.$and = [
+        { "period.startDate": { $lte: endDateObj } },
+        { "period.endDate": { $gte: startDateObj } },
+      ];
     } else if (startDate) {
-      matchStage["period.startDate"] = { $gte: new Date(startDate) };
+      const startDateObj = parseUniversalDate(startDate) || new Date(startDate);
+      matchStage["period.endDate"] = { $gte: startDateObj };
     } else if (endDate) {
-      matchStage["period.endDate"] = { $lte: new Date(endDate) };
+      const endDateObj = parseUniversalDate(endDate) || new Date(endDate);
+      matchStage["period.startDate"] = { $lte: endDateObj };
     }
 
     if (search) {
@@ -195,6 +199,8 @@ const getAllCustomerInvoices = async (req, res) => {
       if (!isNaN(search)) {
         searchConditions.push({ phoneNumber: Number(search) });
       }
+
+      matchStage.$or = searchConditions;
     }
 
     const sortStage = { createdAt: sortOrder === "asc" ? 1 : -1 };
