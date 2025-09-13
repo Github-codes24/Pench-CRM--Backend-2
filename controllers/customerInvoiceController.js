@@ -186,23 +186,14 @@ const getAllCustomerInvoices = async (req, res) => {
 
     if (search) {
       const searchRegex = new RegExp(search, "i");
+      const searchConditions = [
+        { invoiceNumber: searchRegex },
+        { subscriptionPlan: searchRegex },
+        { "customerData.name": searchRegex },
+      ];
+
       if (!isNaN(search)) {
-        matchStage.$or = [
-          { invoiceNumber: searchRegex },
-          { subscriptionPlan: searchRegex },
-          { "products.productName": searchRegex },
-          { "products.productSize": searchRegex },
-          { phoneNumber: Number(search) },
-          { "customerData.name": searchRegex },
-        ];
-      } else {
-        matchStage.$or = [
-          { invoiceNumber: searchRegex },
-          { subscriptionPlan: searchRegex },
-          { "products.productName": searchRegex },
-          { "products.productSize": searchRegex },
-          { "customerData.name": searchRegex },
-        ];
+        searchConditions.push({ phoneNumber: Number(search) });
       }
     }
 
@@ -371,6 +362,16 @@ const getCustomerData = async (req, res) => {
       });
     }
 
+    const availablePaymentStatus = ["Paid", "partially Paid", "Unpaid"];
+
+    if (paymentStatus && !availablePaymentStatus.includes(paymentStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment status",
+        availablePaymentStatus,
+      });
+    }
+
     const customer = await Customer.findById(customerId)
       .populate(
         "products.product",
@@ -397,6 +398,28 @@ const getCustomerData = async (req, res) => {
       endDate,
       paymentStatus
     );
+        
+    const existingInvoice = await Invoice.findOne({
+      customer: customerId,
+      "period.startDate": { $lte: finalEndDate },
+      "period.endDate": { $gte: finalStartDate },
+    });
+
+    if (existingInvoice) {
+      return res.status(409).json({
+        success: false,
+        message: "Invoice already exists for this date range",
+        existingInvoice: {
+          invoiceNumber: existingInvoice.invoiceNumber,
+          period: {
+            startDate: formatDateToDDMMYYYY(existingInvoice.period.startDate),
+            endDate: formatDateToDDMMYYYY(existingInvoice.period.endDate),
+          },
+          status: existingInvoice.payment?.status || "Unpaid",
+          pdfUrl: existingInvoice.pdfUrl,
+        },
+      });
+    }
 
     const orders = await fetchOrdersInRange(
       customerId,
