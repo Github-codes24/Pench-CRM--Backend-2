@@ -4,8 +4,6 @@ const CustomerOrders = require("../models/customerOrderModel");
 const { formatDateToDDMMYYYY } = require("../utils/parsedDateAndDay");
 const Customer = require("../models/customerModel");
 const Product = require("../models/productModel");
-const FRONTEND_BASE =
-  process.env.FRONTEND_BASE_URL || "https://pench-delivery-boy-app.netlify.app";
 
 // ✅ Register Delivery Boy
 const registerDeliveryBoy = async (req, res) => {
@@ -227,7 +225,7 @@ const getDeliveryBoyById = async (req, res) => {
       console.error("Error getting plain password:", error);
     }
 
-    const deliveryBoyCredentialShareableLink = `${FRONTEND_BASE}?t=${deliveryBoy.shareToken}`;
+    const deliveryBoyCredentialShareableLink = `${process.env.FRONTEND_BASE_URL}?t=${deliveryBoy.shareToken}`;
 
     return res.status(200).json({
       success: true,

@@ -722,7 +722,7 @@ const getTotalDeliveredProductUnit = async (req, res) => {
         startDate = firstDayOfWeek;
         endDate = lastDayOfWeek;
         break;
-      case "Donthly":
+      case "Monthly":
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
         endDate = new Date(
           now.getFullYear(),

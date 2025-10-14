@@ -101,7 +101,7 @@ const createPaymentForCustomer = async (req, res) => {
             email: customer.email || "test@example.com",
             contact: String(customer.phoneNumber),
           },
-          callback_url: `${process.env.BASE_URL}/orderrequestpaneltwo`,
+          callback_url: `${process.env.FRONTEND_BASE_URL}/orderrequestpaneltwo`,
           callback_method: "get",
         });
 
@@ -126,7 +126,7 @@ const createPaymentForCustomer = async (req, res) => {
       let remainingAmount = paidAmount;
       let paidOrders = [];
       let carryForwardUsed = 0;
-      
+
       if (latestPayment && latestPayment.carryForwardBalance > 0) {
         carryForwardUsed = Math.min(
           latestPayment.carryForwardBalance,
@@ -193,7 +193,7 @@ const createPaymentForCustomer = async (req, res) => {
     // ✅ Save Payment doc
     const paymentDoc = new Payment(paymentDocData);
     await paymentDoc.save();
-    
+
     const paymentObj = paymentDoc.toObject();
     delete paymentObj.razorpayLinkUrl;
 
@@ -405,20 +405,6 @@ const verifyPayment = async (req, res) => {
       error: error.message,
     });
   }
-};
-
-// Helper function to generate date range
-const generateDateRange = (startDate, endDate) => {
-  const dates = [];
-  const currentDate = new Date(startDate);
-  const lastDate = new Date(endDate);
-
-  while (currentDate <= lastDate) {
-    dates.push(formatDateToDDMMYYYY(currentDate));
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
-
-  return dates;
 };
 
 //✅ Get All Payments by Payment Status
@@ -759,6 +745,7 @@ const getCustomerBalanceAmount = async (req, res) => {
 const getAllCashPaymentsForDeliveryBoy = async (req, res) => {
   try {
     const deliveryBoy = req?.deliveryBoy?._id;
+
     if (!deliveryBoy) {
       return res.status(401).json({
         success: false,
