@@ -107,7 +107,7 @@ const getAllProducts = async (req, res) => {
     limit = parseInt(limit);
 
     // ---- Search Filter ----
-    const filter = { isDeleted: false };
+    const filter = {};
     if (search) {
       filter.$or = [
         { productName: { $regex: search, $options: "i" } },
@@ -143,7 +143,7 @@ const getAllProducts = async (req, res) => {
       price: p.price,
       stockAvailable: p.stock,
       productCode: p.productCode,
-      isDeleted: p.isDeleted,
+      // isDeleted: p.isDeleted,
     }));
 
     const totalPages = Math.ceil(totalProducts / limit);
@@ -217,7 +217,6 @@ const updateProduct = async (req, res) => {
         _id: { $ne: id },
         productName: productName || undefined,
         size: normalizeSize,
-        isDeleted: false,
       });
 
       if (duplicateProduct) {
@@ -262,7 +261,7 @@ const updateProduct = async (req, res) => {
 const deleteProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const product = await Product.findByIdAndUpdate(id, { isDeleted: true });
+    const product = await Product.findByIdAndDelete(id);
     if (!product) {
       return res.status(404).json({
         success: false,
