@@ -125,7 +125,7 @@ const getAllDeliveryBoys = async (req, res) => {
     limit = parseInt(limit);
 
     // Build filter object
-    const filter = { isDeleted: false };
+    const filter = {};
     if (search) {
       if (!isNaN(search)) {
         // 🔹 search is numeric, match exact phone number
@@ -392,9 +392,7 @@ const updateDeliveryBoy = async (req, res) => {
 const deleteDeliveryBoy = async (req, res) => {
   try {
     const { id } = req.params;
-    const deliveryBoy = await DeliveryBoy.findByIdAndUpdate(id, {
-      isDeleted: true,
-    });
+    const deliveryBoy = await DeliveryBoy.findByIdAndDelete(id);
     if (!deliveryBoy) {
       return res
         .status(404)

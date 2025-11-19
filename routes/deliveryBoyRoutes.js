@@ -38,7 +38,7 @@ router.put(
   upload.single("profileImage"),
   updateDeliveryBoy
 );
-router.put("/delete/:id", deleteDeliveryBoy);
+router.delete("/delete/:id", deleteDeliveryBoy);
 router.get(
   "/getOrdersByDeliveryBoy",
   verifyDeliveryBoyToken,
