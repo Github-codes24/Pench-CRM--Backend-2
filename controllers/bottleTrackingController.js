@@ -5,383 +5,147 @@ const {
   parseUniversalDate,
 } = require("../utils/parsedDateAndDay");
 
-// Get bottle count for a specific date
-// Helper function to map product size to bottle size
-// const mapProductSizeToBottleSize = (productSize) => {
-//   if (!productSize) return "1ltr";
-
-//   const sizeStr = productSize.toString().toLowerCase();
-
-//   if (sizeStr.includes("1/2")) {
-//     return "1/2ltr";
-//   }
-
-//   if (sizeStr.includes("1l") || sizeStr.includes("1 l")) {
-//     return "1ltr";
-//   }
-
-//   return "1ltr";
-// };
-
-const convertSizeToBottles = (productSize, quantity = 1) => {
-  if (!productSize) return { "1ltr": 0, "1/2ltr": 0 };
-
-  const sizeStr = productSize.toString().toLowerCase().replace(/\s/g, "");
-  let sizeInLiters = 0;
-
-  // Agar "1/2ltr" likha hai
-  if (sizeStr.includes("1/2")) {
-    sizeInLiters = 0.5;
-  } else {
-    sizeInLiters = parseFloat(sizeStr); // "2.5ltr" => 2.5
-    if (isNaN(sizeInLiters)) sizeInLiters = 1; // fallback
-  }
-
-  const fullLiters = Math.floor(sizeInLiters); // pure liters
-  const hasHalf = sizeInLiters % 1 !== 0; // 0.5 part hai kya?
-
-  return {
-    "1ltr": fullLiters * quantity,
-    "1/2ltr": (hasHalf ? 1 : 0) * quantity,
-  };
-};
-
-// ✅ Get bottle count for a specific date
-// const getBottleCountForDate = async (req, res) => {
-//   try {
-//     const { date } = req.query;
-
-//     let targetDate = new Date();
-
-//     if (date) {
-//       try {
-//         targetDate = parseUniversalDate(date);
-//         if (!targetDate) {
-//           targetDate = new Date(date);
-//           if (isNaN(targetDate.getTime())) {
-//             return res.status(400).json({
-//               success: false,
-//               message: `Invalid date format. Use DD-MM-YYYY, DD/MM/YYYY, or YYYY-MM-DD format`,
-//             });
-//           }
-//         }
-//       } catch (error) {
-//         return res.status(400).json({
-//           success: false,
-//           message: `Invalid date format: ${error.message}. Use DD-MM-YYYY, DD/MM/YYYY, or YYYY-MM-DD format`,
-//         });
-//       }
-//     }
-
-//     const year = targetDate.getUTCFullYear();
-//     const month = targetDate.getUTCMonth();
-//     const day = targetDate.getUTCDate();
-//     targetDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
-
-//     const today = new Date();
-//     const todayYear = today.getUTCFullYear();
-//     const todayMonth = today.getUTCMonth();
-//     const todayDay = today.getUTCDate();
-//     today.setTime(Date.UTC(todayYear, todayMonth, todayDay, 0, 0, 0, 0));
-
-//     let bottleCount = {
-//       "1/2ltr": 0,
-//       "1ltr": 0,
-//       total: 0,
-//     };
-
-//     // Helper function to calculate bottles from products
-//     const calculateBottles = (products) => {
-//       products.forEach((product) => {
-//         const productName =
-//           product.productName ||
-//           (product.product && product.product.productName);
-//         if (productName && productName.toLowerCase().includes("milk")) {
-//           const bottleSize = mapProductSizeToBottleSize(product.productSize);
-//           const quantity = product.quantity || 0;
-//           bottleCount[bottleSize] += quantity;
-//           bottleCount.total += quantity;
-//         }
-//       });
-//     };
-
-//     if (targetDate.getTime() === today.getTime()) {
-//       const orders = await CustomerOrders.find({
-//         deliveryDate: formatDateToDDMMYYYY(targetDate),
-//         status: { $in: ["Pending", "Delivered", "Returned"] },
-//       });
-//       orders.forEach((order) => calculateBottles(order.products));
-//     } else {
-//       const customers = await Customer.find({
-//         subscriptionStatus: "active",
-//         isDeleted: false,
-//       }).populate("products.product");
-
-//       const targetDateStr = formatDateToDDMMYYYY(targetDate);
-//       const eligibleCustomers = customers.filter((customer) => {
-//         const { subscriptionPlan, startDate, endDate, customDeliveryDates } =
-//           customer;
-
-//         try {
-//           switch (subscriptionPlan) {
-//             case "Monthly":
-//               if (!startDate || !endDate) return false;
-//               const target = parseUniversalDate(targetDateStr);
-//               const start = parseUniversalDate(startDate);
-//               const end = parseUniversalDate(endDate);
-//               return target >= start && target <= end;
-
-//             case "Alternate Days":
-//               if (!startDate) return false;
-//               const targetAlt = parseUniversalDate(targetDateStr);
-//               const startAlt = parseUniversalDate(startDate);
-//               const diffTime = targetAlt - startAlt;
-//               const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-//               return diffDays >= 0 && diffDays % 2 === 0;
-
-//             case "Custom Date":
-//               if (!customDeliveryDates || !Array.isArray(customDeliveryDates))
-//                 return false;
-//               return customDeliveryDates.some((deliveryDate) => {
-//                 try {
-//                   const deliveryDateStr =
-//                     typeof deliveryDate === "string"
-//                       ? deliveryDate
-//                       : formatDateToDDMMYYYY(new Date(deliveryDate));
-//                   return deliveryDateStr === targetDateStr;
-//                 } catch (error) {
-//                   console.error("Error parsing custom delivery date:", error);
-//                   return false;
-//                 }
-//               });
-
-//             default:
-//               return false;
-//           }
-//         } catch (error) {
-//           console.error("Error processing customer subscription:", error);
-//           return false;
-//         }
-//       });
-
-//       const presentCustomers = eligibleCustomers.filter((customer) => {
-//         if (!customer.absentDays || customer.absentDays.length === 0)
-//           return true;
-//         return !customer.absentDays.some((absentDate) => {
-//           const absentDateStr = absentDate.toISOString().split("T")[0];
-//           const targetDateStr = targetDate.toISOString().split("T")[0];
-//           return absentDateStr === targetDateStr;
-//         });
-//       });
-
-//       presentCustomers.forEach((customer) =>
-//         calculateBottles(customer.products)
-//       );
-//     }
-
-//     return res.status(200).json({
-//       success: true,
-//       message: `Bottle count for ${targetDate.toISOString().split("T")[0]}`,
-//       data: {
-//         totalBottles: { issue: bottleCount.total, return: 0 },
-//         "1/2ltr": { issue: bottleCount["1/2ltr"], return: 0 },
-//         "1ltr": { issue: bottleCount["1ltr"], return: 0 },
-//       },
-//     });
-//   } catch (error) {
-//     console.error("Error calculating bottle count:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Error calculating bottle count",
-//       error: error.message,
-//     });
-//   }
-// };
-
 const getBottleCountForDate = async (req, res) => {
   try {
     const { date } = req.query;
 
-    let targetDate = new Date();
-
-    if (date) {
-      try {
-        targetDate = parseUniversalDate(date);
-        if (!targetDate) {
-          targetDate = new Date(date);
-          if (isNaN(targetDate.getTime())) {
-            return res.status(400).json({
-              success: false,
-              message: `Invalid date format. Use DD-MM-YYYY, DD/MM/YYYY, or YYYY-MM-DD format`,
-            });
-          }
-        }
-      } catch (error) {
-        return res.status(400).json({
-          success: false,
-          message: `Invalid date format: ${error.message}. Use DD-MM-YYYY, DD/MM/YYYY, or YYYY-MM-DD format`,
-        });
-      }
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: "Date is required in DD/MM/YYYY format",
+      });
     }
 
-    const year = targetDate.getUTCFullYear();
-    const month = targetDate.getUTCMonth();
-    const day = targetDate.getUTCDate();
-    targetDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+    const targetDate = date;
 
-    const today = new Date();
-    const todayYear = today.getUTCFullYear();
-    const todayMonth = today.getUTCMonth();
-    const todayDay = today.getUTCDate();
-    today.setTime(Date.UTC(todayYear, todayMonth, todayDay, 0, 0, 0, 0));
+    const result = await CustomerOrders.aggregate([
+      {
+        $match: {
+          deliveryDate: targetDate,
+          status: { $in: ["Pending", "Delivered", "Returned"] },
+        },
+      },
 
-    let bottleCount = {
-      "1/2ltr": 0,
-      "1ltr": 0,
-      total: 0,
-    };
+      { $unwind: "$products" },
+      {
+        $match: {
+          "products.productName": { $regex: /milk/i },
+        },
+      },
+      {
+        $addFields: {
+          normalizedSize: {
+            $toLower: {
+              $trim: {
+                input: "$products.productSize",
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          physical1Ltr: {
+            $cond: [
+              {
+                $in: [
+                  "$normalizedSize",
+                  ["1ltr", "1 ltr", "1-ltr", "1 liter", "1 l"],
+                ],
+              },
+              "$products.quantity",
+              0,
+            ],
+          },
+          physicalHalfLtr: {
+            $cond: [
+              {
+                $in: [
+                  "$normalizedSize",
+                  ["1/2ltr", "1/2 ltr", "0.5ltr", "0.5 ltr"],
+                ],
+              },
+              "$products.quantity",
+              0,
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total1LtrIssue: { $sum: "$physical1Ltr" },
+          totalHalfLtrIssue: { $sum: "$physicalHalfLtr" },
+        },
+      },
+      {
+        $lookup: {
+          from: "customerorders",
+          pipeline: [
+            { $match: { deliveryDate: targetDate } },
+            { $unwind: "$bottleReturns" },
+            {
+              $group: {
+                _id: "$bottleReturns.size",
+                total: { $sum: "$bottleReturns.quantity" },
+              },
+            },
+          ],
+          as: "returns",
+        },
+      },
+      {
+        $project: {
+          _id: 0,
 
-    let bottleReturnsCount = {
-      "1/2ltr": 0,
-      "1ltr": 0,
-      total: 0,
-    };
+          "1ltr": "$total1LtrIssue",
+          "1/2ltr": "$totalHalfLtrIssue",
 
-    // Helper: calculate bottles from products
-    const calculateBottles = (products) => {
-      products.forEach((product) => {
-        const productName =
-          product.productName ||
-          (product.product && product.product.productName);
+          totalBottles: {
+            issue: { $add: ["$total1LtrIssue", "$totalHalfLtrIssue"] },
+            return: {
+              $sum: {
+                $map: {
+                  input: "$returns",
+                  as: "r",
+                  in: "$$r.total",
+                },
+              },
+            },
+          },
 
-        if (productName && productName.toLowerCase().includes("milk")) {
-          const quantity = product.quantity || 0;
-          const bottles = convertSizeToBottles(product.productSize, quantity);
-
-          bottleCount["1ltr"] += bottles["1ltr"];
-          bottleCount["1/2ltr"] += bottles["1/2ltr"];
-          bottleCount.total += bottles["1ltr"] + bottles["1/2ltr"];
-        }
-      });
-    };
-
-    // Helper: calculate bottle returns from orders
-    const calculateBottleReturns = (orders) => {
-      orders.forEach((order) => {
-        if (order.bottleReturns && Array.isArray(order.bottleReturns)) {
-          order.bottleReturns.forEach((returnItem) => {
-            const size = returnItem.size;
-            const quantity = returnItem.quantity || 0;
-            const bottles = convertSizeToBottles(size, quantity);
-            bottleReturnsCount["1ltr"] += bottles["1ltr"];
-            bottleReturnsCount["1/2ltr"] += bottles["1/2ltr"];
-          });
-        }
-      });
-
-      bottleReturnsCount.total =
-        bottleReturnsCount["1ltr"] + bottleReturnsCount["1/2ltr"];
-    };
-
-    if (targetDate.getTime() === today.getTime()) {
-      const orders = await CustomerOrders.find({
-        deliveryDate: formatDateToDDMMYYYY(targetDate),
-        status: { $in: ["Pending", "Delivered", "Returned"] },
-      });
-      orders.forEach((order) => calculateBottles(order.products));
-      calculateBottleReturns(orders);
-    } else {
-      const customers = await Customer.find({
-        subscriptionStatus: "active",
-        isDeleted: false,
-      }).populate("products.product");
-
-      const targetDateStr = formatDateToDDMMYYYY(targetDate);
-      const eligibleCustomers = customers.filter((customer) => {
-        const { subscriptionPlan, startDate, endDate, customDeliveryDates } =
-          customer;
-
-        try {
-          switch (subscriptionPlan) {
-            case "Monthly":
-              if (!startDate || !endDate) return false;
-              const target = parseUniversalDate(targetDateStr);
-              const start = parseUniversalDate(startDate);
-              const end = parseUniversalDate(endDate);
-              return target >= start && target <= end;
-
-            case "Alternate Days":
-              if (!startDate) return false;
-              const targetAlt = parseUniversalDate(targetDateStr);
-              const startAlt = parseUniversalDate(startDate);
-              const diffTime = targetAlt - startAlt;
-              const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-              return diffDays >= 0 && diffDays % 2 === 0;
-
-            case "Custom Date":
-              if (!customDeliveryDates || !Array.isArray(customDeliveryDates))
-                return false;
-              return customDeliveryDates.some((deliveryDate) => {
-                try {
-                  const deliveryDateStr =
-                    typeof deliveryDate === "string"
-                      ? deliveryDate
-                      : formatDateToDDMMYYYY(new Date(deliveryDate));
-                  return deliveryDateStr === targetDateStr;
-                } catch (error) {
-                  console.error("Error parsing custom delivery date:", error);
-                  return false;
-                }
-              });
-
-            default:
-              return false;
-          }
-        } catch (error) {
-          console.error("Error processing customer subscription:", error);
-          return false;
-        }
-      });
-
-      const presentCustomers = eligibleCustomers.filter((customer) => {
-        if (!customer.absentDays || customer.absentDays.length === 0)
-          return true;
-        return !customer.absentDays.some((absentDate) => {
-          const absentDateStr = absentDate.toISOString().split("T")[0];
-          const targetDateStr = targetDate.toISOString().split("T")[0];
-          return absentDateStr === targetDateStr;
-        });
-      });
-
-      presentCustomers.forEach((customer) =>
-        calculateBottles(customer.products)
-      );
-    }
+          returns: {
+            $arrayToObject: {
+              $map: {
+                input: "$returns",
+                as: "r",
+                in: {
+                  k: "$$r._id",
+                  v: "$$r.total",
+                },
+              },
+            },
+          },
+        },
+      },
+    ]);
 
     return res.status(200).json({
       success: true,
-      message: `Bottle count for ${formatDateToDDMMYYYY(targetDate)}`,
-      data: {
-        totalBottles: {
-          issue: bottleCount.total,
-          return: bottleReturnsCount.total,
-        },
-        "1/2ltr": {
-          issue: bottleCount["1/2ltr"],
-          return: bottleReturnsCount["1/2ltr"],
-        },
-        "1ltr": {
-          issue: bottleCount["1ltr"],
-          return: bottleReturnsCount["1ltr"],
-        },
+      message: `Bottle count for ${targetDate}`,
+      data: result[0] || {
+        "1ltr": 0,
+        "1/2ltr": 0,
+        totalBottles: { issue: 0, return: 0 },
+        returns: {},
       },
     });
-  } catch (error) {
-    console.error("Error calculating bottle count:", error);
+  } catch (err) {
+    console.error("Bottle aggregation error:", err);
     res.status(500).json({
       success: false,
-      message: "Error calculating bottle count",
-      error: error.message,
+      message: "Failed to calculate bottle count",
+      error: err.message,
     });
   }
 };
