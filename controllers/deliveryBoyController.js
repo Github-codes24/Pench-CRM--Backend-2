@@ -653,7 +653,7 @@ const getDeliveryBoyOwnBootleTrackingRecord = async (req, res) => {
     // Get all customers assigned to this delivery boy
     const assignedCustomers = await Customer.find({
       deliveryBoy: deliveryBoyId,
-      isDeleted: false,
+      // isDeleted: false,
       subscriptionStatus: "active",
       customerStatus: "Active",
     }).select("_id");
