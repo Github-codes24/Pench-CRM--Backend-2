@@ -85,10 +85,13 @@ app.use("/api/notification", notificationRoutes);
 db().then(async () => {
   // console.log("✅ Database connected");
 
-  // Run orders initialization only once at server start
-  await initializeOrders();
 
   app.listen(port, () => {
     console.log(`🚀 Server is running on port ${port}`);
   });
+  // Run orders initialization only once at server start
+  initializeOrders()
+    .then(() => console.log("✅ Orders initialized"))
+    .catch((err) => console.error("❌ Orders init failed:", err.message));
+
 });
