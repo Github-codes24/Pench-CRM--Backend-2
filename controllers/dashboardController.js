@@ -208,6 +208,7 @@ const getLowStockProducts = async (req, res, next) => {
     { productName: 1, productCode: 1, stock: 1, size: 1, _id: 1 }
   ).sort({ stock: 1 });
 
+  console.log("Products Found", products)
   if (!products || products.length === 0) {
     return next(new ErrorHandler("No low stock products found", 404));
   }
@@ -539,6 +540,7 @@ const getProductOfTheDay = async (req, res) => {
         $group: {
           _id: "$products._id",
           productName: { $first: "$products.productName" },
+          productSize: { $first: "$products.productSize" },
           totalQuantity: { $sum: "$products.quantity" },
           totalRevenue: { $sum: "$products.totalPrice" },
         },

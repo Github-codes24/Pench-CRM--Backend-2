@@ -46,16 +46,16 @@ const createPaymentForCustomer = async (req, res) => {
       customer: customerId,
       status: "Delivered",
       paymentStatus: "Unpaid",
-    }).sort({ createdAt: 1 });    
+    }).sort({ createdAt: 1 });
 
     const totalAmount = allOrders.reduce(
       (sum, order) => sum + (order.totalAmount || 0),
       0
-    );    
+    );
 
     const latestPayment = await Payment.findOne({
       customer: customerId,
-    }).sort({ createdAt: -1 });    
+    }).sort({ createdAt: -1 });
 
     let finalBalanceAmount = totalAmount;
 
@@ -126,7 +126,7 @@ const createPaymentForCustomer = async (req, res) => {
       let remainingAmount = paidAmount;
       let paidOrders = [];
       let carryForwardUsed = 0;
-      
+
       if (latestPayment && latestPayment.carryForwardBalance > 0) {
         carryForwardUsed = Math.min(
           latestPayment.carryForwardBalance,
@@ -193,7 +193,7 @@ const createPaymentForCustomer = async (req, res) => {
     // ✅ Save Payment doc
     const paymentDoc = new Payment(paymentDocData);
     await paymentDoc.save();
-    
+
     const paymentObj = paymentDoc.toObject();
     delete paymentObj.razorpayLinkUrl;
 
@@ -514,22 +514,23 @@ const getAllPaymentsByStatus = async (req, res) => {
           productSizes: { $push: "$customer.products.productSize" },
           paymentStatus: { $first: "$paymentStatus" },
           paymentMethod: { $first: "$paymentMethod" },
+          paidDate: { $first: "$paidDate" },
           createdAt: { $first: "$createdAt" },
         },
       },
       ...(productName || productSize
         ? [
-            {
-              $match: {
-                ...(productName && {
-                  productNames: { $regex: productName, $options: "i" },
-                }),
-                ...(productSize && {
-                  productSizes: { $regex: productSize, $options: "i" },
-                }),
-              },
+          {
+            $match: {
+              ...(productName && {
+                productNames: { $regex: productName, $options: "i" },
+              }),
+              ...(productSize && {
+                productSizes: { $regex: productSize, $options: "i" },
+              }),
             },
-          ]
+          },
+        ]
         : []),
       {
         $project: {
@@ -539,6 +540,8 @@ const getAllPaymentsByStatus = async (req, res) => {
           totalAmount: 1,
           paidAmount: 1,
           balanceAmount: 1,
+          paidDate: 1, // Added paid date field
+          createdAt: 1,
           productName: {
             $reduce: {
               input: "$productNames",
@@ -570,6 +573,7 @@ const getAllPaymentsByStatus = async (req, res) => {
           status: "$paymentStatus",
         },
       },
+      { $sort: { paidDate: -1, createdAt: -1 } },
       { $skip: (page - 1) * limit },
       { $limit: limit },
     ];
