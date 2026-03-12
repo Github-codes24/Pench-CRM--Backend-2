@@ -9,6 +9,7 @@ const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
+const { convertToBottlesInDiffSizes } = require("../utils/bottleHelper");
 
 const gstNumber = process.env.GST_NUMBER;
 
@@ -409,38 +410,25 @@ const updateOrderStatus = async (req, res) => {
     if (status) {
       // Agar already Delivered hai, to dobara increment mat karo
       if (status === "Delivered" && order.status !== "Delivered") {
-        let milkQuantity = 0;
+        let pendingBottleCount = 0;
+
         order.products.forEach((p) => {
           if (p.productName.toLowerCase() === "milk") {
-            milkQuantity += p.quantity;
+
+            // ✅ convertToBottles से actual bottle count निकालो
+            const { oneLtr, halfLtr } = convertToBottlesInDiffSizes(p.productSize);
+            pendingBottleCount += (oneLtr + halfLtr) * p.quantity;
+
+            console.log(`🍼 Product: "${p.productName}" | Size: "${p.productSize}" | Qty: ${p.quantity} → +${(oneLtr + halfLtr) * p.quantity} bottles`);
           }
         });
 
-        // Sirf ek baar Delivered hone par hi add karo
-        order.pendingBottleReturnQuantity =
-          (order.pendingBottleReturnQuantity || 0) + milkQuantity;
+        console.log(`✅ pendingBottleReturnQuantity set to: ${pendingBottleCount}`);
+        order.pendingBottleReturnQuantity = pendingBottleCount;
       }
 
       order.status = status;
     }
-
-    // // ✅ Handle bottle return size if provided
-    // if (bottleReturnSize) {
-    //   order.bottleReturnSize = bottleReturnSize;
-    // }
-
-    // // ✅ Handle bottlesReturned count manually from body
-    // if (typeof bottlesReturned === "number" && bottlesReturned >= 0) {
-    //   order.bottlesReturned = bottlesReturned;
-
-    //   // Decrease pendingBottleReturnQuantity based on returned bottles
-    //   order.pendingBottleReturnQuantity =
-    //     (order.pendingBottleReturnQuantity || 0) - bottlesReturned;
-
-    //   if (order.pendingBottleReturnQuantity < 0) {
-    //     order.pendingBottleReturnQuantity = 0; // prevent negative
-    //   }
-    // }
 
     await order.save();
 

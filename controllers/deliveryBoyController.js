@@ -5,6 +5,7 @@ const { formatDateToDDMMYYYY } = require("../utils/parsedDateAndDay");
 const Customer = require("../models/customerModel");
 const Product = require("../models/productModel");
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE || "https://pench-delivery-boy-app.netlify.app/";
+const moment = require("moment");
 
 // ✅ Register Delivery Boy
 const registerDeliveryBoy = async (req, res) => {
@@ -1146,6 +1147,117 @@ const logoutDeliveryBoy = async (req, res) => {
 };
 
 //✅ Get Pending Bottles
+// const getPendingBottles = async (req, res) => {
+//   try {
+//     const deliveryBoyId = req.deliveryBoy?._id;
+//     if (!deliveryBoyId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Delivery Boy ID is required",
+//       });
+//     }
+
+//     // ✅ Today's date
+//     const today = moment().format("DD/MM/YYYY");
+//     console.log("🗓️ Today:", today);
+
+//     // ✅ Get all delivered orders with pending bottles
+//     const orders = await CustomerOrders.find({
+//       deliveryBoy: deliveryBoyId,
+//       // status: "Delivered",
+//       deliveryDate: today,
+//       $or: [
+//         { pendingBottleReturnQuantity: { $gt: 0 } }, // still pending
+//         { "bottleReturns.0": { $exists: true } }, // OR at least 1 return entry exists
+//       ],
+//     })
+//       .populate("customer", "_id name phoneNumber address")
+//       .populate("products._id", "productImage");
+
+//       console.log("orders found", orders.length)
+
+//     if (!orders.length) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "No pending bottles found for any customer",
+//       });
+//     }
+
+//     // ✅ Group data by customer
+//     const customersMap = {};
+
+//     orders.forEach((order) => {
+//       const cust = order.customer;
+//       if (!customersMap[cust._id]) {
+//         customersMap[cust._id] = {
+//           customerId: cust._id,
+//           name: cust.name,
+//           phoneNumber: cust.phoneNumber,
+//           address: cust.address,
+//           totalpendingBottleReturnQuantity: 0,
+//           totalBottleReturnedQuantity: 0,
+//           products: [],
+//         };
+//       }
+
+//       // ✅ Collect milk products for this order
+//       const milkProducts = order.products.filter(
+//         (p) => p.productName.toLowerCase() === "milk"
+//       );
+
+//       if (milkProducts.length > 0) {
+//         const productNames = milkProducts.map((p) => p.productName).join(", ");
+//         const productSizes = milkProducts.map((p) => p.productSize).join(", ");
+//         const productQuantities = milkProducts
+//           .map((p) => p.quantity)
+//           .join(", ");
+
+//         // ✅ Total bottles returned for this order (from array)
+//         const totalReturnedForOrder = (order.bottleReturns || []).reduce(
+//           (sum, b) => sum + b.quantity,
+//           0
+//         );
+
+//         customersMap[cust._id].products.push({
+//           orderId: order._id,
+//           orderNumber: order.orderNumber,
+//           productName: productNames,
+//           productSize: productSizes,
+//           quantity: productQuantities,
+//           productImage: milkProducts[0]._id?.productImage || "",
+//           bottlePendingQuantity: order.pendingBottleReturnQuantity || 0,
+//           bottleReturns: order.bottleReturns || [], // 👈 return full array
+//           bottlesReturned: totalReturnedForOrder,
+//         });
+
+//         // ✅ Update customer totals
+//         // ✅ Update customer totals (sum across all orders)
+//         customersMap[cust._id].totalpendingBottleReturnQuantity +=
+//           order.pendingBottleReturnQuantity || 0;
+//         customersMap[cust._id].totalBottleReturnedQuantity +=
+//           totalReturnedForOrder;
+//       }
+//     });
+
+//     const customers = Object.values(customersMap);
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Pending bottles data fetched successfully",
+//       totalCustomers: customers.length,
+//       customers,
+//     });
+//   } catch (error) {
+//     console.error("getPendingBottles Error:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Error fetching pending bottles",
+//       error: error.message,
+//     });
+//   }
+// };
+
+// ✅ Final fixed code of GetPending Bottels
 const getPendingBottles = async (req, res) => {
   try {
     const deliveryBoyId = req.deliveryBoy?._id;
@@ -1156,91 +1268,135 @@ const getPendingBottles = async (req, res) => {
       });
     }
 
-    // ✅ Get all delivered orders with pending bottles
-    const orders = await CustomerOrders.find({
-      deliveryBoy: deliveryBoyId,
-      status: "Delivered",
-      $or: [
-        { pendingBottleReturnQuantity: { $gt: 0 } }, // still pending
-        { "bottleReturns.0": { $exists: true } }, // OR at least 1 return entry exists
-      ],
-    })
-      .populate("customer", "_id name phoneNumber address")
-      .populate("products._id", "productImage");
+    const today = moment().format("DD/MM/YYYY");
+    const tomorrow = moment().add(1, "day").format("DD/MM/YYYY");
 
-    if (!orders.length) {
-      return res.status(404).json({
-        success: false,
-        message: "No pending bottles found for any customer",
+    console.log("📅 Today:", today);
+    console.log("📅 Tomorrow:", tomorrow);
+    console.log("🚴 DeliveryBoy ID:", deliveryBoyId);
+
+    // ✅ Step 1: Check Today's Order
+    const todayOrders = await CustomerOrders.find({
+      deliveryBoy: deliveryBoyId,
+      deliveryDate: today,
+      status: { $in: ["Pending", "Delivered"] },
+    }).populate("customer", "_id name phoneNumber address area");
+
+    console.log(`📦 Today's Orders: ${todayOrders.length}`);
+    console.log(`   ⏳ Pending:   ${todayOrders.filter(o => o.status === "Pending").length}`);
+    console.log(`   ✅ Delivered: ${todayOrders.filter(o => o.status === "Delivered").length}`);
+
+    const todayPendingCount = todayOrders.filter(o => o.status === "Pending").length;
+    const todayDeliveredCount = todayOrders.filter(o => o.status === "Delivered").length;
+
+    let ordersToShow = [];
+    let displayDate = today;
+
+    if (todayOrders.length === 0) {
+      // ✅ If their is No ordes show tommorow's orders (advance view)
+      console.log("📭 No today orders → showing tomorrow's orders");
+      
+      const tomorrowOrders = await CustomerOrders.find({
+        deliveryBoy: deliveryBoyId,
+        deliveryDate: tomorrow,
+        status: "Pending",
+      }).populate("customer", "_id name phoneNumber address area");
+
+      ordersToShow = tomorrowOrders;
+      displayDate = tomorrow;
+      console.log(`📦 Tomorrow's Orders: ${tomorrowOrders.length}`);
+
+    } else if (todayPendingCount > 0) {
+      // ✅ आज के कुछ orders अभी Pending हैं → आज के orders दिखाओ
+      console.log("⏳ Today has pending orders → showing today's orders");
+      ordersToShow = todayOrders;
+      displayDate = today;
+
+    } else if (todayPendingCount === 0 && todayDeliveredCount > 0) {
+      // ✅ आज के सारे orders Delivered हो गए → कल के orders दिखाओ
+      console.log("✅ All today's orders delivered → showing tomorrow's orders");
+
+      const tomorrowOrders = await CustomerOrders.find({
+        deliveryBoy: deliveryBoyId,
+        deliveryDate: tomorrow,
+        status: "Pending",
+      }).populate("customer", "_id name phoneNumber address area");
+
+      ordersToShow = tomorrowOrders;
+      displayDate = tomorrow;
+      console.log(`📦 Tomorrow's Orders: ${tomorrowOrders.length}`);
+    }
+
+    // ✅ Empty होने पर भी 404 नहीं — empty array return करो
+    if (!ordersToShow.length) {
+      return res.status(200).json({
+        success: true,
+        message: `No orders found for ${displayDate}`,
+        totalCustomers: 0,
+        displayDate,
+        customers: [],
       });
     }
 
-    // ✅ Group data by customer
-    const customersMap = {};
+    const customers = [];
 
-    orders.forEach((order) => {
+    for (const order of ordersToShow) {
       const cust = order.customer;
-      if (!customersMap[cust._id]) {
-        customersMap[cust._id] = {
-          customerId: cust._id,
-          name: cust.name,
-          phoneNumber: cust.phoneNumber,
-          address: cust.address,
-          totalpendingBottleReturnQuantity: 0,
-          totalBottleReturnedQuantity: 0,
-          products: [],
-        };
-      }
 
-      // ✅ Collect milk products for this order
       const milkProducts = order.products.filter(
         (p) => p.productName.toLowerCase() === "milk"
       );
 
-      if (milkProducts.length > 0) {
-        const productNames = milkProducts.map((p) => p.productName).join(", ");
-        const productSizes = milkProducts.map((p) => p.productSize).join(", ");
-        const productQuantities = milkProducts
-          .map((p) => p.quantity)
-          .join(", ");
+      let oneLtrBottles = 0;
+      let halfLtrBottles = 0;
 
-        // ✅ Total bottles returned for this order (from array)
-        const totalReturnedForOrder = (order.bottleReturns || []).reduce(
-          (sum, b) => sum + b.quantity,
-          0
-        );
-
-        customersMap[cust._id].products.push({
-          orderId: order._id,
-          orderNumber: order.orderNumber,
-          productName: productNames,
-          productSize: productSizes,
-          quantity: productQuantities,
-          productImage: milkProducts[0]._id?.productImage || "",
-          bottlePendingQuantity: order.pendingBottleReturnQuantity || 0,
-          bottleReturns: order.bottleReturns || [], // 👈 return full array
-          bottlesReturned: totalReturnedForOrder,
-        });
-
-        // ✅ Update customer totals
-        // ✅ Update customer totals (sum across all orders)
-        customersMap[cust._id].totalpendingBottleReturnQuantity +=
-          order.pendingBottleReturnQuantity || 0;
-        customersMap[cust._id].totalBottleReturnedQuantity +=
-          totalReturnedForOrder;
+      for (const p of milkProducts) {
+        const { oneLtr, halfLtr } = convertToBottles(p.productSize);
+        oneLtrBottles += oneLtr * p.quantity;
+        halfLtrBottles += halfLtr * p.quantity;
+        console.log(`   🥛 "${p.productName}" | Size: "${p.productSize}" | Qty: ${p.quantity} → 1ltr: ${oneLtr * p.quantity} | 1/2ltr: ${halfLtr * p.quantity}`);
       }
-    });
 
-    const customers = Object.values(customersMap);
+      const totalBottles = oneLtrBottles + halfLtrBottles;
+      const bottlesReturned = (order.bottleReturns || []).reduce(
+        (sum, b) => sum + b.quantity, 0
+      );
+
+      console.log(`\n👤 Customer: ${cust?.name} | Status: ${order.status} | 1ltr: ${oneLtrBottles} | 1/2ltr: ${halfLtrBottles} | Total: ${totalBottles}`);
+
+      customers.push({
+        customerId: cust?._id,
+        name: cust?.name,
+        phoneNumber: cust?.phoneNumber,
+        address: cust?.address,
+        area: cust?.area,
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+        deliveryDate: order.deliveryDate,
+        orderStatus: order.status,
+        bottles: {
+          "1ltr": oneLtrBottles,
+          "1/2ltr": halfLtrBottles,
+          total: totalBottles,
+        },
+        bottleReturns: order.bottleReturns || [],
+        bottlesReturned,
+        pendingBottleReturnQuantity: order.pendingBottleReturnQuantity || 0,
+      });
+    }
+
+    console.log(`\n📊 Final Summary → displayDate: ${displayDate} | Total Customers: ${customers.length}`);
 
     return res.status(200).json({
       success: true,
-      message: "Pending bottles data fetched successfully",
+      message: `Orders for ${displayDate}`,
       totalCustomers: customers.length,
+      displayDate,
       customers,
     });
+
   } catch (error) {
-    console.error("getPendingBottles Error:", error);
+    console.error("❌ getPendingBottles Error:", error);
     return res.status(500).json({
       success: false,
       message: "Error fetching pending bottles",
@@ -1248,6 +1404,9 @@ const getPendingBottles = async (req, res) => {
     });
   }
 };
+
+
+
 
 // ✅ Get All Bottle sizes
 const getAllMilkBottleSizes = async (req, res) => {
