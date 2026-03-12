@@ -144,22 +144,22 @@ const getBottleCountForDate = async (req, res) => {
       const normalized = sizeStr.toLowerCase().trim();
 
       const sizeMap = {
-        "1/2ltr":  { oneLtr: 0, halfLtr: 1 },
+        "1/2ltr": { oneLtr: 0, halfLtr: 1 },
         "1/2 ltr": { oneLtr: 0, halfLtr: 1 },
-        "0.5ltr":  { oneLtr: 0, halfLtr: 1 },
+        "0.5ltr": { oneLtr: 0, halfLtr: 1 },
         "0.5 ltr": { oneLtr: 0, halfLtr: 1 },
-        "500ml":   { oneLtr: 0, halfLtr: 1 },
-        "1ltr":    { oneLtr: 1, halfLtr: 0 },
-        "1 ltr":   { oneLtr: 1, halfLtr: 0 },
-        "1.5ltr":  { oneLtr: 1, halfLtr: 1 },
+        "500ml": { oneLtr: 0, halfLtr: 1 },
+        "1ltr": { oneLtr: 1, halfLtr: 0 },
+        "1 ltr": { oneLtr: 1, halfLtr: 0 },
+        "1.5ltr": { oneLtr: 1, halfLtr: 1 },
         "1.5 ltr": { oneLtr: 1, halfLtr: 1 },
-        "2ltr":    { oneLtr: 2, halfLtr: 0 },
-        "2 ltr":   { oneLtr: 2, halfLtr: 0 },
-        "2.5ltr":  { oneLtr: 2, halfLtr: 1 },
+        "2ltr": { oneLtr: 2, halfLtr: 0 },
+        "2 ltr": { oneLtr: 2, halfLtr: 0 },
+        "2.5ltr": { oneLtr: 2, halfLtr: 1 },
         "2.5 ltr": { oneLtr: 2, halfLtr: 1 },
-        "3ltr":    { oneLtr: 3, halfLtr: 0 },
-        "3 ltr":   { oneLtr: 3, halfLtr: 0 },
-        "3.5ltr":  { oneLtr: 3, halfLtr: 1 },
+        "3ltr": { oneLtr: 3, halfLtr: 0 },
+        "3 ltr": { oneLtr: 3, halfLtr: 0 },
+        "3.5ltr": { oneLtr: 3, halfLtr: 1 },
         "3.5 ltr": { oneLtr: 3, halfLtr: 1 },
       };
 
@@ -197,39 +197,39 @@ const getBottleCountForDate = async (req, res) => {
     let total1LtrReturn = 0;
     let totalHalfLtrReturn = 0;
 
-   for (const order of orders) {
-  console.log(`\n🧾 Order: ${order.orderNumber} | Status: ${order.status}`);
+    for (const order of orders) {
+      console.log(`\n🧾 Order: ${order.orderNumber} | Status: ${order.status}`);
 
-  // ✅ Issue = Pending + Delivered दोनों
-  if (order.status === "Pending" || order.status === "Delivered") {
-    for (const product of order.products) {
-      if (!product.productName?.toLowerCase().includes("milk")) {
-        console.log(`   ⛔ Skipped "${product.productName}" — Not a Milk product`);
-        continue;
+      // ✅ Issue = Pending + Delivered दोनों
+      if (order.status === "Pending" || order.status === "Delivered") {
+        for (const product of order.products) {
+          if (!product.productName?.toLowerCase().includes("milk")) {
+            console.log(`   ⛔ Skipped "${product.productName}" — Not a Milk product`);
+            continue;
+          }
+          const { oneLtr, halfLtr } = convertToBottles(product.productSize);
+          const qty = product.quantity || 1;
+          total1LtrIssue += oneLtr * qty;
+          totalHalfLtrIssue += halfLtr * qty;
+          console.log(`   🥛 "${product.productName}" | Size: "${product.productSize}" | Qty: ${qty} → +${oneLtr * qty} (1ltr) +${halfLtr * qty} (1/2ltr)`);
+        }
       }
-      const { oneLtr, halfLtr } = convertToBottles(product.productSize);
-      const qty = product.quantity || 1;
-      total1LtrIssue += oneLtr * qty;
-      totalHalfLtrIssue += halfLtr * qty;
-      console.log(`   🥛 "${product.productName}" | Size: "${product.productSize}" | Qty: ${qty} → +${oneLtr * qty} (1ltr) +${halfLtr * qty} (1/2ltr)`);
-    }
-  }
 
-  // ✅ Return = सिर्फ Returned orders
-  if (order.status === "Returned") {
-    if (!order.bottleReturns || order.bottleReturns.length === 0) {
-      console.log(`   📭 No bottle returns for this order`);
-    } else {
-      for (const ret of order.bottleReturns) {
-        const { oneLtr, halfLtr } = convertToBottles(ret.size);
-        const qty = ret.quantity || 1;
-        total1LtrReturn += oneLtr * qty;
-        totalHalfLtrReturn += halfLtr * qty;
-        console.log(`   ↩️ Return Size: "${ret.size}" | Qty: ${qty} → +${oneLtr * qty} (1ltr) +${halfLtr * qty} (1/2ltr)`);
+      // ✅ Return = सिर्फ Returned orders
+      if (order.status === "Returned") {
+        if (!order.bottleReturns || order.bottleReturns.length === 0) {
+          console.log(`   📭 No bottle returns for this order`);
+        } else {
+          for (const ret of order.bottleReturns) {
+            const { oneLtr, halfLtr } = convertToBottles(ret.size);
+            const qty = ret.quantity || 1;
+            total1LtrReturn += oneLtr * qty;
+            totalHalfLtrReturn += halfLtr * qty;
+            console.log(`   ↩️ Return Size: "${ret.size}" | Qty: ${qty} → +${oneLtr * qty} (1ltr) +${halfLtr * qty} (1/2ltr)`);
+          }
+        }
       }
     }
-  }
-}
 
     console.log("\n📊 Final Bottle Count:");
     console.log(`   1ltr   → Issue: ${total1LtrIssue}   | Return: ${total1LtrReturn}`);
@@ -410,6 +410,7 @@ const getAllBottleTrackingOrders = async (req, res) => {
           price: p.price,
           totalPrice: p.totalPrice,
         })),
+      bottlesReturned: (order.bottleReturns || []).reduce((total, ret) => total + (ret.quantity || 0), 0),
     }));
 
     const totalPages = Math.ceil(totalOrders / limit);
