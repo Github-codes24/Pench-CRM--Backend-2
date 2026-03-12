@@ -514,6 +514,7 @@ const updateBottleReturns = async (req, res) => {
       customer: customerId,
       deliveryBoy: deliveryBoy._id,
       status: "Delivered",
+      deliveryDate: { $ne: today },
     })
       .populate("customer")
       .populate("deliveryBoy")
@@ -582,12 +583,16 @@ const updateBottleReturns = async (req, res) => {
       standardBottleReturns.push({
         size: "1ltr",
         quantity: totalOneLtrReturned,
+        previousOrderId: lastDeliveredOrder._id, // ✅ Last delivered order _id
+        previousDeliveryDate: lastDeliveredOrder.deliveryDate, // ✅ Last delivered order date
       });
     }
     if (totalHalfLtrReturned > 0) {
       standardBottleReturns.push({
         size: "1/2ltr",
         quantity: totalHalfLtrReturned,
+        previousOrderId: lastDeliveredOrder._id, // ✅ Last delivered order _id
+        previousDeliveryDate: lastDeliveredOrder.deliveryDate, // ✅ Last delivered order date
       });
     }
 
@@ -607,6 +612,8 @@ const updateBottleReturns = async (req, res) => {
     const cleanedBottleReturns = todayOrder.bottleReturns.map((ret) => ({
       size: ret.size,
       quantity: ret.quantity,
+      previousOrderId: ret.previousOrderId,
+      previousDeliveryDate: ret.previousDeliveryDate,
     }));
 
     return res.status(200).json({

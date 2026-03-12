@@ -92,9 +92,19 @@ const customerOrdersSchema = new mongoose.Schema(
       {
         size: { type: String, required: true },
         quantity: { type: Number, required: true, min: 1 },
-      }
+        previousOrderId: {
+          type: mongoose.Schema.Types.ObjectId, // ✅ which order bottle were return 
+          ref: "CustomerOrders",
+          required: false,
+        },
+     
+        previousDeliveryDate: { //✅ To Track which order Date the order belong to
+          type: String,
+          required: false,
+        },
+      },
     ],
-    
+
     pendingBottleReturnQuantity: {
       type: Number,
       default: 0,
