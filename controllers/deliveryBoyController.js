@@ -888,7 +888,7 @@ const getOrderHistory = async (req, res) => {
     const orders = await CustomerOrders.find(filter)
       .populate({
         path: "customer",
-        select: "name phoneNumber image address",
+        select: "name phoneNumber image",
       })
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -905,7 +905,7 @@ const getOrderHistory = async (req, res) => {
         name: order.customer?.name,
         phoneNumber: order.customer?.phoneNumber,
         image: order.customer?.image,
-        address: order.customer?.address,
+        // address: order.customer?.address,
       },
       products: order.products.map((p) => ({
         productName: p.productName,
@@ -1206,7 +1206,7 @@ const getPendingBottles = async (req, res) => {
         name: cust?.name,
         phoneNumber: cust?.phoneNumber,
         address: cust?.address,
-        image:cust?.image,
+        image: cust?.image,
         area: cust?.area,
         orderId: order._id,
         orderNumber: order.orderNumber,
