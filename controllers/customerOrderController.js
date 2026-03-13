@@ -515,6 +515,8 @@ const updateBottleReturns = async (req, res) => {
       });
     }
 
+    // console.log("Last Delivered Order", lastDeliveredOrder)
+
     const todayOrder = await CustomerOrders.findOne({
       customer: customerId,
       deliveryBoy: deliveryBoy._id,
@@ -522,6 +524,7 @@ const updateBottleReturns = async (req, res) => {
     })
       .populate("customer")
       .populate("deliveryBoy");
+    console.log("Today's Order", todayOrder)
 
     if (!todayOrder) {
       return res.status(404).json({
@@ -549,21 +552,18 @@ const updateBottleReturns = async (req, res) => {
       const normSize = normalizeSize(ret.size);
 
       if (!allowedSizes.includes(normSize)) {
+        console.log(`⛔ Size "${normSize}" not in allowedSizes: ${allowedSizes}`);
         continue;
       }
 
       if (typeof ret.quantity === "number" && ret.quantity > 0) {
-        const { oneLtrBottles, halfLtrBottles } = convertToStandardBottles(
-          normSize,
-          ret.quantity
-        );
+        // ✅ convertToBottles
+        const { oneLtr, halfLtr } = convertToBottlesInDiffSizes(normSize);
 
-        if (oneLtrBottles > 0) {
-          totalOneLtrReturned += oneLtrBottles;
-        }
-        if (halfLtrBottles > 0) {
-          totalHalfLtrReturned += halfLtrBottles;
-        }
+        totalOneLtrReturned += oneLtr * ret.quantity;
+        totalHalfLtrReturned += halfLtr * ret.quantity;
+
+        console.log(`✅ Size: "${normSize}" | Qty: ${ret.quantity} → 1ltr: ${oneLtr * ret.quantity} | 1/2ltr: ${halfLtr * ret.quantity}`);
       }
     }
 

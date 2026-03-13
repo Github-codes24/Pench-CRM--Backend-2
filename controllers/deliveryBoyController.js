@@ -6,6 +6,7 @@ const Customer = require("../models/customerModel");
 const Product = require("../models/productModel");
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE || "https://pench-delivery-boy-app.netlify.app/";
 const moment = require("moment");
+const { convertToBottlesInDiffSizes } = require("../utils/bottleHelper")
 
 // ✅ Register Delivery Boy
 const registerDeliveryBoy = async (req, res) => {
@@ -621,214 +622,19 @@ const shareConsumeToken = async (req, res) => {
 };
 
 // ✅ Get DeliveryBoy Own Bootle Tracking Record
-// 🔹 Helper: Convert size + quantity into 1ltr and 1/2ltr bottles
-function convertToBottles(size, quantity) {
-  const litersPerUnit = parseFloat(size.replace("ltr", ""));
-  const totalLiters = litersPerUnit * quantity;
+// // 🔹 Helper: Convert size + quantity into 1ltr and 1/2ltr bottles
+// function convertToBottles(size, quantity) {
+//   const litersPerUnit = parseFloat(size.replace("ltr", ""));
+//   const totalLiters = litersPerUnit * quantity;
 
-  const oneLtrBottles = Math.floor(totalLiters); // full liters
-  const halfLtrBottles = totalLiters % 1 === 0.5 ? 1 : 0; // half liter if remainder is .5
+//   const oneLtrBottles = Math.floor(totalLiters); // full liters
+//   const halfLtrBottles = totalLiters % 1 === 0.5 ? 1 : 0; // half liter if remainder is .5
 
-  return { oneLtrBottles, halfLtrBottles };
-}
+//   return { oneLtrBottles, halfLtrBottles };
+// }
 
-// const getDeliveryBoyOwnBootleTrackingRecord = async (req, res) => {
-//   try {
-//     const deliveryBoyId = req.deliveryBoy?._id;
-
-//     if (!deliveryBoyId) {
-//       return res.status(401).json({ success: false, message: "Unauthorized" });
-//     }
-
-//     const deliveryBoy = await DeliveryBoy.findById(deliveryBoyId);
-
-//     if (!deliveryBoy) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "Delivery boy not found" });
-//     }
-
-//     const today = formatDateToDDMMYYYY(new Date());
-//     console.log('Today Date:', today)
-
-//     // Get all customers assigned to this delivery boy
-//     const assignedCustomers = await Customer.find({
-//       deliveryBoy: deliveryBoyId,
-//       // isDeleted: false,
-//       subscriptionStatus: "active",
-//       customerStatus: "Active",
-//     }).select("_id");
-
-//     if (!assignedCustomers.length) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "No customers assigned to this delivery boy",
-//       });
-//     }
-
-//     const customerIds = assignedCustomers.map((customer) => customer._id);
-
-//     const todayOrders = await CustomerOrders.find({
-//       deliveryBoy: deliveryBoyId,
-//       customer: { $in: customerIds },
-//       deliveryDate: today,
-//       status: { $in: ["Pending", "Delivered"] },
-//     });
-
-//     // 2. Get TODAY'S orders with bottle returns (for totalReturned calculation)
-//     const todayOrdersWithReturns = await CustomerOrders.find({
-//       deliveryBoy: deliveryBoyId,
-//       customer: { $in: customerIds },
-//       deliveryDate: today,
-//       "bottleReturns.0": { $exists: true },
-//     });
-
-//     // 3. Get LAST delivered order for each customer (for yetToReturn calculation)
-//     const lastDeliveredOrders = await CustomerOrders.find({
-//       deliveryBoy: deliveryBoyId,
-//       customer: { $in: customerIds },
-//       status: "Delivered",
-//     })
-//       .sort({ deliveryDate: -1, createdAt: -1 })
-//       .populate("customer", "name phoneNumber");
-
-//     // Group orders by customer to get the most recent order for each customer
-//     const customerLastOrders = {};
-//     lastDeliveredOrders.forEach((order) => {
-//       const customerId = order.customer._id.toString();
-//       if (!customerLastOrders[customerId]) {
-//         customerLastOrders[customerId] = order;
-//       }
-//     });
-
-//     const allDeliveredOrders = Object.values(customerLastOrders);
-
-//     // Calculate TODAY'S issued bottles
-//     let totalIssued = 0;
-//     let oneLtrIssued = 0;
-//     let halfLtrIssued = 0;
-
-//     for (const order of todayOrders) {
-//       for (const p of order.products) {
-//         if (p.productName === "Milk") {
-//           if (p.productSize === "1ltr") {
-//             oneLtrIssued += p.quantity;
-//             totalIssued += p.quantity;
-//           } else if (p.productSize === "1/2ltr") {
-//             halfLtrIssued += p.quantity;
-//             totalIssued += p.quantity;
-//           } else {
-//             const { oneLtrBottles, halfLtrBottles } = convertToBottles(
-//               p.productSize,
-//               p.quantity
-//             );
-//             oneLtrIssued += oneLtrBottles;
-//             halfLtrIssued += halfLtrBottles;
-//             totalIssued += oneLtrBottles + halfLtrBottles;
-//           }
-//         }
-//       }
-//     }
-
-//     // Calculate TODAY'S returned bottles
-//     let totalReturned = 0;
-//     let oneLtrReturned = 0;
-//     let halfLtrReturned = 0;
-
-//     for (const order of todayOrdersWithReturns) {
-//       if (order.bottleReturns && order.bottleReturns.length > 0) {
-//         order.bottleReturns.forEach((ret) => {
-//           if (ret.size === "1ltr") {
-//             oneLtrReturned += ret.quantity;
-//             totalReturned += ret.quantity;
-//           } else if (ret.size === "1/2ltr") {
-//             halfLtrReturned += ret.quantity;
-//             totalReturned += ret.quantity;
-//           } else {
-//             const { oneLtrBottles, halfLtrBottles } = convertToBottles(
-//               ret.size,
-//               ret.quantity
-//             );
-//             oneLtrReturned += oneLtrBottles;
-//             halfLtrReturned += halfLtrBottles;
-//             totalReturned += oneLtrBottles + halfLtrBottles;
-//           }
-//         });
-//       }
-//     }
-
-//     // Calculate YET TO RETURN bottles from ALL last delivered orders
-//     let totalDelivered = 0;
-//     let oneLtrDelivered = 0;
-//     let halfLtrDelivered = 0;
-
-//     for (const order of allDeliveredOrders) {
-//       // Calculate bottles delivered in this last order
-//       for (const p of order.products) {
-//         if (p.productName === "Milk") {
-//           if (p.productSize === "1ltr") {
-//             oneLtrDelivered += p.quantity;
-//             totalDelivered += p.quantity;
-//           } else if (p.productSize === "1/2ltr") {
-//             halfLtrDelivered += p.quantity;
-//             totalDelivered += p.quantity;
-//           } else {
-//             const { oneLtrBottles, halfLtrBottles } = convertToBottles(
-//               p.productSize,
-//               p.quantity
-//             );
-//             oneLtrDelivered += oneLtrBottles;
-//             halfLtrDelivered += halfLtrBottles;
-//             totalDelivered += oneLtrBottles + halfLtrBottles;
-//           }
-//         }
-//       }
-//     }
-
-//     // Calculate pending bottles: Total delivered - Total returned today
-//     const totalYetToReturn = totalDelivered - totalReturned;
-//     const oneLtrYetToReturn = oneLtrDelivered - oneLtrReturned;
-//     const halfLtrYetToReturn = halfLtrDelivered - halfLtrReturned;
-
-//     const response = {
-//       _id: deliveryBoy._id,
-//       deliveryBoy: deliveryBoy.name,
-//       total: {
-//         issued: totalIssued,
-//         returned: totalReturned,
-//         yetToReturn: totalYetToReturn,
-//       },
-//       "1ltr": {
-//         issued: oneLtrIssued,
-//         returned: oneLtrReturned,
-//         yetToReturn: oneLtrYetToReturn,
-//       },
-//       "1/2ltr": {
-//         issued: halfLtrIssued,
-//         returned: halfLtrReturned,
-//         yetToReturn: halfLtrYetToReturn,
-//       },
-//       totalCustomers: assignedCustomers.length,
-//       todayOrdersCount: todayOrders.length,
-//     };
-
-//     return res.json({
-//       success: true,
-//       message: "Delivery boy own bottle tracking record fetched successfully",
-//       trackingRecord: response,
-//     });
-//   } catch (error) {
-//     console.error("getDeliveryBoyOwnBootleTrackingRecord error:", error);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to get delivery boy own bottle tracking record",
-//     });
-//   }
-// };
 
 //✅ Order history
-
-
 const getDeliveryBoyOwnBootleTrackingRecord = async (req, res) => {
   try {
     const deliveryBoyId = req.deliveryBoy?._id;
@@ -924,10 +730,10 @@ const getDeliveryBoyOwnBootleTrackingRecord = async (req, res) => {
             totalIssued += p.quantity;
             console.log(`   🥛 Size: "1/2ltr" | Qty: ${p.quantity} → +${p.quantity} (1/2ltr)`);
           } else {
-            const { oneLtrBottles, halfLtrBottles } = convertToBottles(p.productSize, p.quantity);
-            oneLtrIssued += oneLtrBottles;
-            halfLtrIssued += halfLtrBottles;
-            totalIssued += oneLtrBottles + halfLtrBottles;
+            const { oneLtr, halfLtr } = convertToBottlesInDiffSizes(p.productSize);
+            oneLtrIssued += oneLtr * p.quantity;
+            halfLtrIssued += halfLtr * p.quantity;
+            totalIssued += (oneLtr + halfLtr) * p.quantity;
             console.log(`   🥛 Size: "${p.productSize}" | Qty: ${p.quantity} → +${oneLtrBottles} (1ltr) +${halfLtrBottles} (1/2ltr)`);
           }
         } else {
@@ -957,11 +763,11 @@ const getDeliveryBoyOwnBootleTrackingRecord = async (req, res) => {
             totalReturned += ret.quantity;
             console.log(`   ↩️ Return Size: "1/2ltr" | Qty: ${ret.quantity} → +${ret.quantity} (1/2ltr)`);
           } else {
-            const { oneLtrBottles, halfLtrBottles } = convertToBottles(ret.size, ret.quantity);
-            oneLtrReturned += oneLtrBottles;
-            halfLtrReturned += halfLtrBottles;
-            totalReturned += oneLtrBottles + halfLtrBottles;
-            console.log(`   ↩️ Return Size: "${ret.size}" | Qty: ${ret.quantity} → +${oneLtrBottles} (1ltr) +${halfLtrBottles} (1/2ltr)`);
+            const { oneLtr, halfLtr } = convertToBottlesInDiffSizes(ret.size);
+            oneLtrReturned += oneLtr * ret.quantity;
+            halfLtrReturned += halfLtr * ret.quantity;
+            totalReturned += (oneLtr + halfLtr) * ret.quantity;
+            console.log(`   ↩️ Return Size: "${ret.size}" | Qty: ${ret.quantity} → +${oneLtr} (1ltr) +${halfLtr} (1/2ltr)`);
           }
         });
       }
@@ -988,10 +794,10 @@ const getDeliveryBoyOwnBootleTrackingRecord = async (req, res) => {
             totalDelivered += p.quantity;
             console.log(`   🥛 Size: "1/2ltr" | Qty: ${p.quantity} → +${p.quantity} (1/2ltr)`);
           } else {
-            const { oneLtrBottles, halfLtrBottles } = convertToBottles(p.productSize, p.quantity);
-            oneLtrDelivered += oneLtrBottles;
-            halfLtrDelivered += halfLtrBottles;
-            totalDelivered += oneLtrBottles + halfLtrBottles;
+            const { oneLtr, halfLtr } = convertToBottlesInDiffSizes(ret.size);
+            oneLtrReturned += oneLtr * ret.quantity;
+            halfLtrReturned += halfLtr * ret.quantity;
+            totalReturned += (oneLtr + halfLtr) * ret.quantity;
             console.log(`   🥛 Size: "${p.productSize}" | Qty: ${p.quantity} → +${oneLtrBottles} (1ltr) +${halfLtrBottles} (1/2ltr)`);
           }
         } else {
@@ -1067,13 +873,13 @@ const getOrderHistory = async (req, res) => {
     };
 
     if (status === "All" || status === "Pending") {
-      // ✅ All और Pending में सिर्फ आज के orders
+      // ✅ In All and Pending Only today's order
       filter.deliveryDate = todayDate;
       if (status === "Pending") {
         filter.status = "Pending";
       }
     } else if (status === "Delivered") {
-      // ✅ Delivered में सभी dates के orders (historical)
+      // ✅ In Delivered All dates order
       filter.status = "Delivered";
     }
 
@@ -1275,27 +1081,27 @@ const getPendingBottles = async (req, res) => {
     console.log("📅 Tomorrow:", tomorrow);
     console.log("🚴 DeliveryBoy ID:", deliveryBoyId);
 
-    // ✅ Step 1: Check Today's Order
+    // Step 1: Fetch today's orders (Pending + Delivered)
     const todayOrders = await CustomerOrders.find({
       deliveryBoy: deliveryBoyId,
       deliveryDate: today,
       status: { $in: ["Pending", "Delivered"] },
     }).populate("customer", "_id name phoneNumber address area");
 
-    console.log(`📦 Today's Orders: ${todayOrders.length}`);
-    console.log(`   ⏳ Pending:   ${todayOrders.filter(o => o.status === "Pending").length}`);
-    console.log(`   ✅ Delivered: ${todayOrders.filter(o => o.status === "Delivered").length}`);
-
     const todayPendingCount = todayOrders.filter(o => o.status === "Pending").length;
     const todayDeliveredCount = todayOrders.filter(o => o.status === "Delivered").length;
+
+    console.log(`📦 Today's Orders: ${todayOrders.length}`);
+    console.log(`   ⏳ Pending:   ${todayPendingCount}`);
+    console.log(`   ✅ Delivered: ${todayDeliveredCount}`);
 
     let ordersToShow = [];
     let displayDate = today;
 
     if (todayOrders.length === 0) {
-      // ✅ If their is No ordes show tommorow's orders (advance view)
+      // Case 1: No orders today → show tomorrow's orders (advance view)
       console.log("📭 No today orders → showing tomorrow's orders");
-      
+
       const tomorrowOrders = await CustomerOrders.find({
         deliveryBoy: deliveryBoyId,
         deliveryDate: tomorrow,
@@ -1307,27 +1113,52 @@ const getPendingBottles = async (req, res) => {
       console.log(`📦 Tomorrow's Orders: ${tomorrowOrders.length}`);
 
     } else if (todayPendingCount > 0) {
-      // ✅ आज के कुछ orders अभी Pending हैं → आज के orders दिखाओ
+      // Case 2: Today has some pending orders → show today's orders
       console.log("⏳ Today has pending orders → showing today's orders");
       ordersToShow = todayOrders;
       displayDate = today;
 
     } else if (todayPendingCount === 0 && todayDeliveredCount > 0) {
-      // ✅ आज के सारे orders Delivered हो गए → कल के orders दिखाओ
-      console.log("✅ All today's orders delivered → showing tomorrow's orders");
+      // Case 3: All today's orders are delivered
+      // → Check if tomorrow's orders are generated for all customers
+      console.log("✅ All today's orders delivered → checking tomorrow's orders...");
 
+      // Get list of customers who got delivery today
+      const todayDeliveredCustomerIds = todayOrders.map(o => o.customer._id.toString());
+      console.log(`👥 Today delivered customers: ${todayDeliveredCustomerIds.length}`);
+
+      // Fetch tomorrow's generated orders
       const tomorrowOrders = await CustomerOrders.find({
         deliveryBoy: deliveryBoyId,
         deliveryDate: tomorrow,
         status: "Pending",
       }).populate("customer", "_id name phoneNumber address area");
 
-      ordersToShow = tomorrowOrders;
-      displayDate = tomorrow;
-      console.log(`📦 Tomorrow's Orders: ${tomorrowOrders.length}`);
+      const tomorrowCustomerIds = tomorrowOrders.map(o => o.customer._id.toString());
+      console.log(`📦 Tomorrow's Orders generated for: ${tomorrowCustomerIds.length} customers`);
+
+      // Check if tomorrow's orders are generated for all today's delivered customers
+      const allTomorrowOrdersGenerated = todayDeliveredCustomerIds.every(
+        id => tomorrowCustomerIds.includes(id)
+      );
+
+      console.log(`🔍 All tomorrow orders generated: ${allTomorrowOrdersGenerated}`);
+
+      if (allTomorrowOrdersGenerated && tomorrowOrders.length > 0) {
+        // Tomorrow's orders are ready → switch to tomorrow's orders
+        console.log("🚀 Tomorrow's orders ready → showing tomorrow's orders");
+        ordersToShow = tomorrowOrders;
+        displayDate = tomorrow;
+      } else {
+        // Tomorrow's orders not yet generated by initializeOrders
+        // → Keep showing today's delivered orders until tomorrow's are ready
+        console.log("⏳ Tomorrow's orders not yet generated → still showing today's orders");
+        ordersToShow = todayOrders;
+        displayDate = today;
+      }
     }
 
-    // ✅ Empty होने पर भी 404 नहीं — empty array return करो
+    // Return empty array instead of 404 when no orders found
     if (!ordersToShow.length) {
       return res.status(200).json({
         success: true,
@@ -1343,21 +1174,27 @@ const getPendingBottles = async (req, res) => {
     for (const order of ordersToShow) {
       const cust = order.customer;
 
+      // Filter only milk products
       const milkProducts = order.products.filter(
         (p) => p.productName.toLowerCase() === "milk"
       );
 
+      // Calculate bottle count based on product size
       let oneLtrBottles = 0;
       let halfLtrBottles = 0;
 
       for (const p of milkProducts) {
-        const { oneLtr, halfLtr } = convertToBottles(p.productSize);
+        console.log("🔍 convertToBottles result:", convertToBottles(p.productSize));
+        const { oneLtr, halfLtr } = convertToBottlesInDiffSizes(p.productSize);
+        console.log("oneLtr:", oneLtr, "| halfLtr:", halfLtr);
         oneLtrBottles += oneLtr * p.quantity;
         halfLtrBottles += halfLtr * p.quantity;
         console.log(`   🥛 "${p.productName}" | Size: "${p.productSize}" | Qty: ${p.quantity} → 1ltr: ${oneLtr * p.quantity} | 1/2ltr: ${halfLtr * p.quantity}`);
       }
 
       const totalBottles = oneLtrBottles + halfLtrBottles;
+
+      // Calculate total bottles returned from bottleReturns array
       const bottlesReturned = (order.bottleReturns || []).reduce(
         (sum, b) => sum + b.quantity, 0
       );
@@ -1385,7 +1222,7 @@ const getPendingBottles = async (req, res) => {
       });
     }
 
-    console.log(`\n📊 Final Summary → displayDate: ${displayDate} | Total Customers: ${customers.length}`);
+    console.log(`\n📊 Final → displayDate: ${displayDate} | Total Customers: ${customers.length}`);
 
     return res.status(200).json({
       success: true,
