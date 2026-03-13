@@ -1086,7 +1086,7 @@ const getPendingBottles = async (req, res) => {
       deliveryBoy: deliveryBoyId,
       deliveryDate: today,
       status: { $in: ["Pending", "Delivered"] },
-    }).populate("customer", "_id name phoneNumber address area");
+    }).populate("customer", "_id name phoneNumber image address area");
 
     const todayPendingCount = todayOrders.filter(o => o.status === "Pending").length;
     const todayDeliveredCount = todayOrders.filter(o => o.status === "Delivered").length;
@@ -1132,7 +1132,7 @@ const getPendingBottles = async (req, res) => {
         deliveryBoy: deliveryBoyId,
         deliveryDate: tomorrow,
         status: "Pending",
-      }).populate("customer", "_id name phoneNumber address area");
+      }).populate("customer", "_id name phoneNumber image address area");
 
       const tomorrowCustomerIds = tomorrowOrders.map(o => o.customer._id.toString());
       console.log(`📦 Tomorrow's Orders generated for: ${tomorrowCustomerIds.length} customers`);
@@ -1206,6 +1206,7 @@ const getPendingBottles = async (req, res) => {
         name: cust?.name,
         phoneNumber: cust?.phoneNumber,
         address: cust?.address,
+        image:cust?.image,
         area: cust?.area,
         orderId: order._id,
         orderNumber: order.orderNumber,
