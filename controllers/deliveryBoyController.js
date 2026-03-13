@@ -1184,7 +1184,7 @@ const getPendingBottles = async (req, res) => {
       let halfLtrBottles = 0;
 
       for (const p of milkProducts) {
-        console.log("🔍 convertToBottles result:", convertToBottles(p.productSize));
+        console.log("🔍 convertToBottlesInDiffSizes result:", convertToBottlesInDiffSizes(p.productSize));
         const { oneLtr, halfLtr } = convertToBottlesInDiffSizes(p.productSize);
         console.log("oneLtr:", oneLtr, "| halfLtr:", halfLtr);
         oneLtrBottles += oneLtr * p.quantity;
