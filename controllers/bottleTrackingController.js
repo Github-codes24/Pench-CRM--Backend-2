@@ -388,6 +388,7 @@ const getAllBottleTrackingOrders = async (req, res) => {
       orderId: order._id,
       orderNumber: order.orderNumber,
       customerName: order.customer?.name || "N/A",
+      customerImage: order.customer?.image || "N/A",
       phoneNumber: order.customer?.phoneNumber || "N/A",
       deliveryBoyName: order.deliveryBoy?.name || "N/A",
       deliveryDate: order.deliveryDate,
