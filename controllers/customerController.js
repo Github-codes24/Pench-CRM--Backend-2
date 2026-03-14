@@ -406,6 +406,7 @@ const getCustomerById = async (req, res) => {
     const customerInfo = {
       _id: customer._id,
       name: customer.name,
+      image: customer.image,
       phoneNumber: customer.phoneNumber,
       address: customer.address,
       subscriptionPlan: customer.subscriptionPlan,

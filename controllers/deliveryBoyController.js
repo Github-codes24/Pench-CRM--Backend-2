@@ -206,7 +206,7 @@ const getDeliveryBoyById = async (req, res) => {
 
     const customer = await Customer.find({ deliveryBoy: id })
       .populate("products.product", "productName") // only fetch productName
-      .select("name phoneNumber startDate products");
+      .select("name phoneNumber image startDate products");
 
     const assignedCustomers = customer.map((c) => {
       const productNames = c.products.map((p) => p.product?.productName || "");
